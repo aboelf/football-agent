@@ -34,7 +34,6 @@
             overflow-x: hidden;
         }
 
-        /* 背景动画效果 */
         .bg-grid {
             position: fixed;
             top: 0;
@@ -87,7 +86,6 @@
             padding: 20px;
         }
 
-        /* 头部 */
         .header {
             display: flex;
             justify-content: space-between;
@@ -134,7 +132,6 @@
             gap: 15px;
         }
 
-        /* 按钮样式 */
         .btn {
             padding: 10px 20px;
             border: none;
@@ -159,6 +156,12 @@
             box-shadow: 0 6px 25px rgba(0, 212, 255, 0.4);
         }
 
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .btn-secondary {
             background: var(--bg-card);
             color: var(--text-primary);
@@ -170,17 +173,21 @@
             border-color: var(--primary-color);
         }
 
-        .btn-icon {
-            width: 40px;
-            height: 40px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error-color), #dc2626);
+            color: white;
         }
 
-        /* 卡片样式 */
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-small {
+            padding: 6px 10px;
+            font-size: 0.75rem;
+        }
+
         .card {
             background: var(--bg-card);
             border-radius: 16px;
@@ -217,10 +224,9 @@
             border-radius: 2px;
         }
 
-        /* 主内容区 */
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 350px;
+            grid-template-columns: 1fr 1fr;
             gap: 24px;
         }
 
@@ -230,14 +236,18 @@
             }
         }
 
-        /* 下载面板 */
-        .download-panel {
+        .left-panel {
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
 
-        /* 输入表单 */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
         .input-group {
             display: flex;
             gap: 12px;
@@ -269,7 +279,6 @@
             color: var(--text-secondary);
         }
 
-        /* 下载选项 */
         .download-options {
             display: flex;
             gap: 12px;
@@ -310,41 +319,82 @@
             color: var(--text-secondary);
         }
 
-        /* 状态面板 */
-        .status-panel {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 20px;
-        }
-
-        .status-item {
-            text-align: center;
-            padding: 16px;
-            background: var(--bg-dark);
-            border-radius: 10px;
-        }
-
-        .status-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
-
-        .status-label {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            margin-top: 4px;
-        }
-
-        /* 侧边栏 */
-        .sidebar {
+        .tabs-container {
             display: flex;
             flex-direction: column;
-            gap: 20px;
         }
 
-        /* 文件列表 */
+        .main-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-dark);
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 0;
+        }
+
+        .main-tab {
+            flex: 1;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .main-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .main-tab.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--bg-dark);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
         .file-list {
             max-height: 400px;
             overflow-y: auto;
@@ -415,12 +465,6 @@
             gap: 8px;
         }
 
-        .btn-small {
-            padding: 6px 10px;
-            font-size: 0.75rem;
-        }
-
-        /* 空状态 */
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -433,108 +477,6 @@
             opacity: 0.5;
         }
 
-        /* 进度显示 */
-        .progress-container {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .progress-container.active {
-            display: block;
-        }
-
-        .progress-bar {
-            height: 6px;
-            background: var(--bg-dark);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-            border-radius: 3px;
-            transition: width 0.3s ease;
-            width: 0%;
-        }
-
-        .progress-text {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        /* 日志输出 */
-        .log-panel {
-            max-height: 200px;
-            overflow-y: auto;
-            background: #0d1117;
-            border-radius: 8px;
-            padding: 12px;
-            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-            font-size: 0.8rem;
-        }
-
-        .log-entry {
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .log-entry:last-child {
-            border-bottom: none;
-        }
-
-        .log-time {
-            color: var(--text-secondary);
-            margin-right: 8px;
-        }
-
-        .log-success {
-            color: var(--success-color);
-        }
-
-        .log-error {
-            color: var(--error-color);
-        }
-
-        .log-info {
-            color: var(--primary-color);
-        }
-
-        /* 标签页 */
-        .tabs {
-            display: flex;
-            gap: 4px;
-            background: var(--bg-dark);
-            padding: 4px;
-            border-radius: 10px;
-            margin-bottom: 16px;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 10px 16px;
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .tab:hover {
-            color: var(--text-primary);
-        }
-
-        .tab.active {
-            background: var(--bg-card);
-            color: var(--text-primary);
-        }
-
-        /* 通知动画 */
         .notification {
             position: fixed;
             top: 20px;
@@ -564,11 +506,14 @@
             border-color: var(--error-color);
         }
 
+        .notification.warning {
+            border-color: var(--warning-color);
+        }
+
         .notification-icon {
             font-size: 1.2rem;
         }
 
-        /* 加载动画 */
         .spinner {
             width: 20px;
             height: 20px;
@@ -582,7 +527,184 @@
             to { transform: rotate(360deg); }
         }
 
-        /* 响应式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-content {
+            margin-bottom: 24px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .analysis-match-card {
+            background: var(--bg-dark);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .analysis-match-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .match-teams {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .match-score {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .match-info {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .match-info span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .stats-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stats-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .stats-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .analysis-detail {
+            display: none;
+        }
+
+        .analysis-detail.show {
+            display: block;
+        }
+
+        .back-btn {
+            margin-bottom: 16px;
+        }
+
+        .detail-section {
+            margin-bottom: 20px;
+        }
+
+        .detail-section h4 {
+            font-size: 0.95rem;
+            color: var(--primary-color);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: var(--text-secondary);
+        }
+
+        .detail-value {
+            font-weight: 500;
+        }
+
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -597,8 +719,12 @@
                 flex-direction: column;
             }
 
-            .status-panel {
-                grid-template-columns: 1fr;
+            .main-tabs {
+                flex-wrap: wrap;
+            }
+
+            .main-tab {
+                flex: 1 1 45%;
             }
         }
     </style>
@@ -609,7 +735,6 @@
     <div class="bg-glow bg-glow-2"></div>
 
     <div class="container">
-        <!-- 头部 -->
         <header class="header">
             <div class="logo">
                 <div class="logo-icon">⚽</div>
@@ -625,91 +750,92 @@
             </div>
         </header>
 
-        <!-- 主内容区 -->
         <div class="main-content">
-            <!-- 下载面板 -->
-            <div class="download-panel">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">数据下载</h2>
-                    </div>
-
-                    <div class="input-group">
-                        <div class="input-wrapper">
-                            <input type="text" id="matchId" placeholder="请输入比赛编号 (如: 1234567)" />
-                        </div>
-                        <button class="btn btn-primary" onclick="downloadAll()">
-                            <span>⬇️</span> 全部下载
+            <div class="left-panel">
+                <div class="tabs-container">
+                    <div class="main-tabs">
+                        <button class="main-tab active" onclick="switchMainTab('download')">
+                            📥 数据下载
+                        </button>
+                        <button class="main-tab" onclick="switchMainTab('analysis')">
+                            📊 分析数据
                         </button>
                     </div>
 
-                    <div class="download-options">
-                        <label class="option-card active" id="option-analysis">
-                            <input type="checkbox" checked data-type="analysis">
-                            <div class="option-icon">📊</div>
-                            <div class="option-label">分析数据</div>
-                        </label>
-                        <label class="option-card active" id="option-odds">
-                            <input type="checkbox" checked data-type="odds">
-                            <div class="option-icon">📈</div>
-                            <div class="option-label">赔率数据</div>
-                        </label>
-                    </div>
+                    <div class="tab-content active" id="tab-download">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">下载比赛数据</h2>
+                            </div>
 
-                    <div class="progress-container" id="progressContainer">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progressFill"></div>
+                            <div class="input-group">
+                                <div class="input-wrapper">
+                                    <input type="text" id="matchId" placeholder="请输入比赛编号 (如: 2789330)" oninput="checkExistingData()" />
+                                </div>
+                                <button class="btn btn-primary" onclick="downloadData()">
+                                    <span>⬇️</span> 下载
+                                </button>
+                            </div>
+
+                            <div class="download-options">
+                                <label class="option-card active" id="option-analysis">
+                                    <input type="checkbox" checked data-type="analysis">
+                                    <div class="option-icon">📊</div>
+                                    <div class="option-label">分析数据</div>
+                                </label>
+                                <label class="option-card active" id="option-odds">
+                                    <input type="checkbox" checked data-type="odds">
+                                    <div class="option-icon">📈</div>
+                                    <div class="option-label">赔率数据</div>
+                                </label>
+                            </div>
+
+                            <div class="progress-container" id="progressContainer">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressFill"></div>
+                                </div>
+                                <div class="progress-text">
+                                    <span id="progressStatus">准备中...</span>
+                                    <span id="progressPercent">0%</span>
+                                </div>
+                            </div>
+                            <div id="browserTip" style="margin-top: 10px; padding: 8px 12px; background: rgba(0, 212, 255, 0.1); border-radius: 6px; font-size: 0.8rem; color: var(--primary-color); display: none;">
+                                ℹ️ 使用浏览器获取动态数据，请耐心等待...
+                            </div>
                         </div>
-                        <div class="progress-text">
-                            <span id="progressStatus">准备中...</span>
-                            <span id="progressPercent">0%</span>
+                    </div>
+
+                    <div class="tab-content" id="tab-analysis">
+                        <div class="card" id="analysis-list-card">
+                            <div class="card-header">
+                                <h2 class="card-title">已分析的比赛数据</h2>
+                            </div>
+                            <div class="file-list" id="analysisList">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📊</div>
+                                    <p>暂无分析数据</p>
+                                    <p style="margin-top: 8px; font-size: 0.8rem;">请先下载分析数据并运行解析脚本</p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div id="browserTip" style="margin-top: 10px; padding: 8px 12px; background: rgba(0, 212, 255, 0.1); border-radius: 6px; font-size: 0.8rem; color: var(--primary-color); display: none;">
-                        ℹ️ 使用浏览器获取动态数据，请耐心等待...
-                    </div>
-                </div>
 
-                <!-- 状态卡片 -->
-                <div class="status-panel">
-                    <div class="status-item">
-                        <div class="status-value" id="totalCount">0</div>
-                        <div class="status-label">总下载数</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-value" id="analysisCount">0</div>
-                        <div class="status-label">分析数据</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-value" id="oddsCount">0</div>
-                        <div class="status-label">赔率数据</div>
-                    </div>
-                </div>
-
-                <!-- 日志面板 -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">操作日志</h2>
-                        <button class="btn btn-secondary btn-small" onclick="clearLog()">清空</button>
-                    </div>
-                    <div class="log-panel" id="logPanel">
-                        <div class="empty-state">
-                            <div class="empty-icon">📝</div>
-                            <p>暂无日志记录</p>
+                        <div class="card analysis-detail" id="analysis-detail">
+                            <button class="btn btn-secondary back-btn" onclick="backToList()">
+                                <span>←</span> 返回列表
+                            </button>
+                            <div id="analysisDetailContent"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 侧边栏 -->
-            <div class="sidebar">
-                <!-- 已下载文件 -->
+            <div class="right-panel">
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">已下载文件</h2>
                     </div>
 
-                    <div class="tabs">
+                    <div class="tabs" style="margin-bottom: 16px;">
                         <button class="tab active" onclick="switchTab('all')">全部</button>
                         <button class="tab" onclick="switchTab('analysis')">分析</button>
                         <button class="tab" onclick="switchTab('odds')">赔率</button>
@@ -723,7 +849,6 @@
                     </div>
                 </div>
 
-                <!-- 快捷说明 -->
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">使用说明</h2>
@@ -732,9 +857,9 @@
                         <p>1. 输入比赛编号并点击下载</p>
                         <p>2. 可选择单独下载分析或赔率数据</p>
                         <p>3. 下载完成后可在右侧查看文件</p>
-                        <p>4. 点击文件可查看详细内容</p>
+                        <p>4. 点击"分析数据"查看已解析的比赛信息</p>
                         <p style="margin-top: 12px; color: var(--primary-color);">
-                            💡 提示：比赛编号为数字，如 1895030
+                            💡 提示：比赛编号为数字，如 2789330
                         </p>
                     </div>
                 </div>
@@ -742,23 +867,54 @@
         </div>
     </div>
 
-    <!-- 通知 -->
     <div class="notification" id="notification">
         <span class="notification-icon" id="notificationIcon"></span>
         <span id="notificationText"></span>
     </div>
 
-    <script>
-        // 全局状态
-        let currentTab = 'all';
-        let isDownloading = false;
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal">
+            <div class="modal-title">
+                <span>⚠️</span> 确认重新下载
+            </div>
+            <div class="modal-content" id="modalContent">
+                该比赛已存在下载数据，是否删除并重新下载？
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-danger" id="confirmReDownload">确认重新下载</button>
+            </div>
+        </div>
+    </div>
 
-        // 初始化
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <div class="modal-title">
+                <span>🗑️</span> 确认删除
+            </div>
+            <div class="modal-content">
+                确定要删除 <span id="deleteMatchName" style="color: var(--primary-color); font-weight: 600;"></span> 的分析数据吗？<br>
+                <span style="color: var(--error-color); font-size: 0.85rem;">此操作不可恢复！</span>
+            </div>
+            <input type="hidden" id="deleteMatchId">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">取消</button>
+                <button class="btn btn-danger" onclick="deleteAnalysis()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'all';
+        let currentAnalysisTab = 'list';
+        let isDownloading = false;
+        let pendingMatchId = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             refreshStats();
             refreshFiles();
+            loadAnalysisList();
 
-            // 选项卡交互
             document.querySelectorAll('.option-card').forEach(card => {
                 card.addEventListener('click', () => {
                     card.classList.toggle('active');
@@ -768,43 +924,34 @@
             });
         });
 
-        // 添加日志
-        function addLog(message, type = 'info') {
-            const panel = document.getElementById('logPanel');
-            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-
-            // 移除空状态
-            const emptyState = panel.querySelector('.empty-state');
-            if (emptyState) {
-                emptyState.remove();
-            }
-
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.innerHTML = `<span class="log-time">[${time}]</span><span class="log-${type}">${message}</span>`;
-            panel.appendChild(entry);
-            panel.scrollTop = panel.scrollHeight;
+        function switchMainTab(tab) {
+            document.querySelectorAll('.main-tab').forEach(t => {
+                t.classList.toggle('active', t.textContent.includes(tab === 'download' ? '下载' : '分析'));
+            });
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.toggle('active', c.id === 'tab-' + tab);
+            });
         }
 
-        // 清空日志
-        function clearLog() {
-            const panel = document.getElementById('logPanel');
-            panel.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">📝</div>
-                    <p>暂无日志记录</p>
-                </div>
-            `;
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tabs .tab').forEach(t => {
+                t.classList.toggle('active', 
+                    (tab === 'all' && t.textContent === '全部') ||
+                    (tab === 'analysis' && t.textContent === '分析') ||
+                    (tab === 'odds' && t.textContent === '赔率')
+                );
+            });
+            refreshFiles();
         }
 
-        // 显示通知
         function showNotification(message, type = 'success') {
             const notification = document.getElementById('notification');
             const icon = document.getElementById('notificationIcon');
             const text = document.getElementById('notificationText');
 
             notification.className = `notification ${type} show`;
-            icon.textContent = type === 'success' ? '✓' : '✗';
+            icon.textContent = type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️';
             text.textContent = message;
 
             setTimeout(() => {
@@ -812,8 +959,32 @@
             }, 3000);
         }
 
-        // 下载全部
-        async function downloadAll() {
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('show');
+            pendingMatchId = null;
+        }
+
+        async function checkExistingData() {
+            const matchId = document.getElementById('matchId').value.trim();
+            if (!matchId) return;
+
+            try {
+                const res = await fetch(`/api/check/${matchId}`);
+                const data = await res.json();
+
+                if (data.success && (data.data.has_analysis || data.data.has_odds)) {
+                    document.getElementById('matchId').dataset.hasExisting = 'true';
+                    document.getElementById('matchId').style.borderColor = 'var(--warning-color)';
+                } else {
+                    document.getElementById('matchId').dataset.hasExisting = 'false';
+                    document.getElementById('matchId').style.borderColor = '';
+                }
+            } catch (error) {
+                console.error('检查数据失败:', error);
+            }
+        }
+
+        async function downloadData() {
             const matchId = document.getElementById('matchId').value.trim();
 
             if (!matchId) {
@@ -826,6 +997,33 @@
                 return;
             }
 
+            const hasExisting = document.getElementById('matchId').dataset.hasExisting === 'true';
+
+            if (hasExisting) {
+                pendingMatchId = matchId;
+                document.getElementById('confirmModal').classList.add('show');
+                return;
+            }
+
+            performDownload(matchId);
+        }
+
+        document.getElementById('confirmReDownload').addEventListener('click', async function() {
+            if (pendingMatchId) {
+                closeModal();
+                showNotification('正在删除旧数据...', 'warning');
+                
+                try {
+                    await fetch(`/api/delete/${pendingMatchId}`, { method: 'POST' });
+                    await refreshFiles();
+                    performDownload(pendingMatchId);
+                } catch (error) {
+                    showNotification('删除旧数据失败', 'error');
+                }
+            }
+        });
+
+        async function performDownload(matchId) {
             const downloadAnalysis = document.querySelector('#option-analysis input').checked;
             const downloadOdds = document.querySelector('#option-odds input').checked;
 
@@ -836,7 +1034,6 @@
 
             isDownloading = true;
 
-            // 禁用下载按钮
             const downloadBtn = document.querySelector('.btn-primary');
             const originalBtnContent = downloadBtn.innerHTML;
             downloadBtn.disabled = true;
@@ -853,11 +1050,8 @@
             progressFill.style.width = '10%';
             progressFill.style.transition = 'width 0.5s ease';
 
-            addLog(`开始下载比赛 ${matchId} 的数据 (使用浏览器获取动态内容)...`, 'info');
-
             try {
                 if (downloadAnalysis && downloadOdds) {
-                    // 同时下载
                     progressStatus.textContent = '正在打开浏览器...';
                     progressFill.style.width = '20%';
 
@@ -873,9 +1067,9 @@
                     const analysisData = await analysisRes.json();
 
                     if (analysisData.success) {
-                        addLog(`✓ 分析数据下载成功`, 'success');
+                        showNotification('分析数据下载成功', 'success');
                     } else {
-                        addLog(`✗ 分析数据下载失败: ${analysisData.error}`, 'error');
+                        showNotification(`分析数据下载失败: ${analysisData.error}`, 'error');
                     }
 
                     progressStatus.textContent = '赔率数据下载中...';
@@ -892,9 +1086,9 @@
                     const oddsData = await oddsRes.json();
 
                     if (oddsData.success) {
-                        addLog(`✓ 赔率数据下载成功`, 'success');
+                        showNotification('赔率数据下载成功', 'success');
                     } else {
-                        addLog(`✗ 赔率数据下载失败: ${oddsData.error}`, 'error');
+                        showNotification(`赔率数据下载失败: ${oddsData.error}`, 'error');
                     }
 
                 } else if (downloadAnalysis) {
@@ -911,9 +1105,9 @@
                     const data = await res.json();
 
                     if (data.success) {
-                        addLog(`✓ 分析数据下载成功`, 'success');
+                        showNotification('分析数据下载成功', 'success');
                     } else {
-                        addLog(`✗ 分析数据下载失败: ${data.error}`, 'error');
+                        showNotification(`分析数据下载失败: ${data.error}`, 'error');
                     }
 
                 } else if (downloadOdds) {
@@ -930,9 +1124,9 @@
                     const data = await res.json();
 
                     if (data.success) {
-                        addLog(`✓ 赔率数据下载成功`, 'success');
+                        showNotification('赔率数据下载成功', 'success');
                     } else {
-                        addLog(`✗ 赔率数据下载失败: ${data.error}`, 'error');
+                        showNotification(`赔率数据下载失败: ${data.error}`, 'error');
                     }
                 }
 
@@ -947,22 +1141,20 @@
                     progressPercent.textContent = '0%';
                 }, 1500);
 
-                showNotification('下载任务完成', 'success');
                 await refreshStats();
                 await refreshFiles();
 
             } catch (error) {
-                addLog(`✗ 下载出错: ${error.message}`, 'error');
-                showNotification('下载失败', 'error');
+                showNotification('下载失败: ' + error.message, 'error');
             } finally {
-                // 恢复下载按钮
                 downloadBtn.disabled = false;
                 downloadBtn.innerHTML = originalBtnContent;
                 isDownloading = false;
+                document.getElementById('matchId').dataset.hasExisting = 'false';
+                document.getElementById('matchId').style.borderColor = '';
             }
         }
 
-        // 刷新统计
         async function refreshStats() {
             try {
                 const res = await fetch('/api/stats');
@@ -978,7 +1170,6 @@
             }
         }
 
-        // 刷新文件列表
         async function refreshFiles() {
             try {
                 const res = await fetch('/api/files');
@@ -992,7 +1183,6 @@
             }
         }
 
-        // 渲染文件列表
         function renderFileList(files) {
             const container = document.getElementById('fileList');
             let html = '';
@@ -1010,7 +1200,6 @@
                 displayFiles = oddsFiles.map(f => ({ ...f, type: 'odds' }));
             }
 
-            // 按时间排序（文件名包含时间戳）
             displayFiles.sort((a, b) => b.localeCompare(a));
 
             if (displayFiles.length === 0) {
@@ -1051,29 +1240,286 @@
             container.innerHTML = html;
         }
 
-        // 切换标签页
-        function switchTab(tab) {
-            currentTab = tab;
-
-            document.querySelectorAll('.tabs .tab').forEach(t => {
-                t.classList.toggle('active', t.textContent.toLowerCase().includes(tab) ||
-                    (tab === 'all' && t.textContent === '全部') ||
-                    (tab === 'analysis' && t.textContent === '分析') ||
-                    (tab === 'odds' && t.textContent === '赔率'));
-            });
-
-            refreshFiles();
-        }
-
-        // 查看文件
         function viewFile(type, filename) {
             const url = type === 'analysis'
                 ? `/api/files/analysis/${filename}`
                 : `/api/files/odds/${filename}`;
 
-            // 新窗口打开
             window.open(url, '_blank');
-            addLog(`查看文件: ${filename}`, 'info');
+        }
+
+        async function loadAnalysisList() {
+            try {
+                const res = await fetch('/api/analysis/list');
+                const data = await res.json();
+
+                if (data.success && data.data.length > 0) {
+                    renderAnalysisList(data.data);
+                }
+            } catch (error) {
+                console.error('获取分析数据列表失败:', error);
+            }
+        }
+
+        function renderAnalysisList(matches) {
+            const container = document.getElementById('analysisList');
+            let html = '';
+
+            if (matches.length === 0) {
+                html = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <p>暂无分析数据</p>
+                        <p style="margin-top: 8px; font-size: 0.8rem;">请先下载分析数据并运行解析脚本</p>
+                    </div>
+                `;
+            } else {
+                matches.forEach(match => {
+                    const info = match.match_info;
+                    const homeStats = match.home_team_full_stats;
+                    const awayStats = match.away_team_full_stats;
+
+                    html += `
+                        <div class="analysis-match-card">
+                            <div class="match-header">
+                                <div class="match-teams">
+                                    <span onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">${info.home_team}</span>
+                                    <span style="color: var(--text-secondary)">vs</span>
+                                    <span onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">${info.away_team}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="match-score">${info.final_score || '未完'}</div>
+                                    <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); confirmDeleteAnalysis('${info.match_id}', '${info.home_team} vs ${info.away_team}')">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="match-info">
+                                <span>📅 ${info.match_time}</span>
+                                <span>🏆 ${info.league} ${info.round_num}</span>
+                                <span>📍 ${info.venue || '未知'}</span>
+                            </div>
+                            <div class="stats-grid">
+                                <div class="stats-item" onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">
+                                    <div class="stats-value">${homeStats.rank || '-'}</div>
+                                    <div class="stats-label">主队排名</div>
+                                </div>
+                                <div class="stats-item" onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">
+                                    <div class="stats-value">${awayStats.rank || '-'}</div>
+                                    <div class="stats-label">客队排名</div>
+                                </div>
+                                <div class="stats-item" onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">
+                                    <div class="stats-value">${homeStats.points || 0}</div>
+                                    <div class="stats-label">主队积分</div>
+                                </div>
+                                <div class="stats-item" onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">
+                                    <div class="stats-value">${awayStats.points || 0}</div>
+                                    <div class="stats-label">客队积分</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        function confirmDeleteAnalysis(matchId, matchName) {
+            document.getElementById('deleteMatchId').value = matchId;
+            document.getElementById('deleteMatchName').textContent = matchName;
+            document.getElementById('deleteModal').classList.add('show');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+        }
+
+        async function deleteAnalysis() {
+            const matchId = document.getElementById('deleteMatchId').value;
+            
+            try {
+                const res = await fetch(`/api/analysis/${matchId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showNotification('删除成功', 'success');
+                    closeDeleteModal();
+                    loadAnalysisList();
+                } else {
+                    showNotification(data.error || '删除失败', 'error');
+                }
+            } catch (error) {
+                showNotification('删除失败: ' + error.message, 'error');
+            }
+        }
+
+        async function showAnalysisDetail(matchId) {
+            try {
+                const res = await fetch(`/api/analysis/${matchId}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    renderAnalysisDetail(data.data);
+                    document.getElementById('analysis-list-card').style.display = 'none';
+                    document.getElementById('analysis-detail').classList.add('show');
+                    currentAnalysisTab = 'detail';
+                } else {
+                    showNotification('未找到该比赛的分析数据', 'error');
+                }
+            } catch (error) {
+                showNotification('获取分析数据失败', 'error');
+            }
+        }
+
+        function renderAnalysisDetail(data) {
+            const info = data.match_info;
+            const homeStats = data.home_team_full_stats;
+            const awayStats = data.away_team_full_stats;
+            const homeHomeStats = data.home_team_home_stats;
+            const awayAwayStats = data.away_team_away_stats;
+
+            const container = document.getElementById('analysisDetailContent');
+
+            container.innerHTML = `
+                <div class="detail-section">
+                    <h4>📅 比赛基本信息</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">比赛编号</span>
+                        <span class="detail-value">${info.match_id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">比赛时间</span>
+                        <span class="detail-value">${info.match_time}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">联赛</span>
+                        <span class="detail-value">${info.league} ${info.round_num}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">比分</span>
+                        <span class="detail-value" style="color: var(--primary-color); font-size: 1.1rem;">${info.final_score || '未完'} (半场 ${info.half_score || '-'})</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">场地</span>
+                        <span class="detail-value">${info.venue || '未知'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">天气</span>
+                        <span class="detail-value">${info.weather || '未知'} ${info.temperature || ''}</span>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4>⚽ ${info.home_team} (主场)</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">联赛排名</span>
+                        <span class="detail-value">第 ${homeStats.rank || '-'} 名</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">总战绩</span>
+                        <span class="detail-value">${homeStats.matches || 0}场 ${homeStats.wins || 0}胜 ${homeStats.draws || 0}平 ${homeStats.losses || 0}负</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">进/失球</span>
+                        <span class="detail-value">${homeStats.goals_for || 0} / ${homeStats.goals_against || 0} (${homeStats.goal_diff >= 0 ? '+' : ''}${homeStats.goal_diff || 0})</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">积分</span>
+                        <span class="detail-value">${homeStats.points || 0} 分</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">主场战绩</span>
+                        <span class="detail-value">${homeHomeStats.matches || 0}场 ${homeHomeStats.wins || 0}胜 ${homeHomeStats.draws || 0}平 ${homeHomeStats.losses || 0}负</span>
+                    </div>
+                    ${info.home_recent_ratings && info.home_recent_ratings.length > 0 ? `
+                    <div class="detail-row">
+                        <span class="detail-label">近10场评分</span>
+                        <span class="detail-value">${info.home_recent_ratings.join(' ')}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="detail-section">
+                    <h4>⚽ ${info.away_team} (客场)</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">联赛排名</span>
+                        <span class="detail-value">第 ${awayStats.rank || '-'} 名</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">总战绩</span>
+                        <span class="detail-value">${awayStats.matches || 0}场 ${awayStats.wins || 0}胜 ${awayStats.draws || 0}平 ${awayStats.losses || 0}负</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">进/失球</span>
+                        <span class="detail-value">${awayStats.goals_for || 0} / ${awayStats.goals_against || 0} (${awayStats.goal_diff >= 0 ? '+' : ''}${awayStats.goal_diff || 0})</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">积分</span>
+                        <span class="detail-value">${awayStats.points || 0} 分</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">客场战绩</span>
+                        <span class="detail-value">${awayAwayStats.matches || 0}场 ${awayAwayStats.wins || 0}胜 ${awayAwayStats.draws || 0}平 ${awayAwayStats.losses || 0}负</span>
+                    </div>
+                    ${info.away_recent_ratings && info.away_recent_ratings.length > 0 ? `
+                    <div class="detail-row">
+                        <span class="detail-label">近10场评分</span>
+                        <span class="detail-value">${info.away_recent_ratings.join(' ')}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                ${data.h2h_records && data.h2h_records.length > 0 ? `
+                <div class="detail-section">
+                    <h4>📊 历史交锋 (${data.h2h_records.length}场)</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px;">
+                        ${data.h2h_records.slice(0, 8).map(r => `
+                            <div class="detail-row" style="background: var(--bg-dark); padding: 8px 12px; border-radius: 6px;">
+                                <span class="detail-label" style="font-size: 0.8rem;">${r.date} ${r.league}</span>
+                                <span class="detail-value" style="font-size: 0.85rem;">${r.home_team} ${r.home_goals}-${r.away_goals} ${r.away_team}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${data.recent_matches_home && data.recent_matches_home.length > 0 ? `
+                <div class="detail-section">
+                    <h4>📈 ${info.home_team} 近期战绩 (${data.recent_matches_home.length}场)</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px;">
+                        ${data.recent_matches_home.slice(0, 6).map(r => `
+                            <div class="detail-row" style="background: var(--bg-dark); padding: 8px 12px; border-radius: 6px;">
+                                <span class="detail-label" style="font-size: 0.8rem;">${r.date} ${r.league}</span>
+                                <span class="detail-value" style="font-size: 0.85rem;">${r.home_team} ${r.home_goals}-${r.away_goals} ${r.away_team}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${data.recent_matches_away && data.recent_matches_away.length > 0 ? `
+                <div class="detail-section">
+                    <h4>📈 ${info.away_team} 近期战绩 (${data.recent_matches_away.length}场)</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px;">
+                        ${data.recent_matches_away.slice(0, 6).map(r => `
+                            <div class="detail-row" style="background: var(--bg-dark); padding: 8px 12px; border-radius: 6px;">
+                                <span class="detail-label" style="font-size: 0.8rem;">${r.date} ${r.league}</span>
+                                <span class="detail-value" style="font-size: 0.85rem;">${r.home_team} ${r.home_goals}-${r.away_goals} ${r.away_team}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function backToList() {
+            document.getElementById('analysis-detail').classList.remove('show');
+            document.getElementById('analysis-list-card').style.display = 'block';
+            currentAnalysisTab = 'list';
         }
     </script>
 </body>
