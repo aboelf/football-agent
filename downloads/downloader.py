@@ -2,12 +2,74 @@
 足球比赛赔率分析系统 - 数据下载模块
 使用 Playwright 处理动态加载的数据
 """
+
 import requests
 from datetime import datetime
 import os
 import re
 import json
 import time
+from typing import Dict, List, Optional
+from enum import Enum
+
+
+class OddsType(Enum):
+    HANDICAP = "handicap"
+    ODDS = "odds"
+    OVERUNDER = "overunder"
+
+
+class Bookmaker(Enum):
+    MACAU = "macau"
+    BET365 = "bet365"
+    EASYBET = "easybet"
+    WILLIAM = "william"
+    BETFAIR = "betfair"
+
+    @property
+    def name(self) -> str:
+        return {
+            Bookmaker.MACAU: "澳门",
+            Bookmaker.BET365: "bet365",
+            Bookmaker.EASYBET: "易胜博",
+            Bookmaker.WILLIAM: "威廉",
+            Bookmaker.BETFAIR: "Betfair",
+        }[self]
+
+    def get_company_id(self, odds_type: OddsType) -> int:
+        """根据赔率类型返回对应的庄家ID"""
+        if odds_type == OddsType.HANDICAP:
+            return {
+                Bookmaker.MACAU: 1,
+                Bookmaker.BET365: 8,
+                Bookmaker.EASYBET: 12,
+            }[self]
+        elif odds_type == OddsType.ODDS:
+            return {
+                Bookmaker.BET365: 281,
+                Bookmaker.EASYBET: 90,
+                Bookmaker.WILLIAM: 115,
+                Bookmaker.BETFAIR: 2,
+            }[self]
+        elif odds_type == OddsType.OVERUNDER:
+            return {
+                Bookmaker.MACAU: 1,
+                Bookmaker.BET365: 8,
+                Bookmaker.EASYBET: 12,
+            }[self]
+        raise ValueError(f"Unknown odds type: {odds_type}")
+
+
+BOOKMAKER_HANDICAP_IDS = {
+    OddsType.HANDICAP: [Bookmaker.MACAU, Bookmaker.BET365, Bookmaker.EASYBET],
+    OddsType.ODDS: [
+        Bookmaker.WILLIAM,
+        Bookmaker.BET365,
+        Bookmaker.EASYBET,
+        Bookmaker.BETFAIR,
+    ],
+    OddsType.OVERUNDER: [Bookmaker.MACAU, Bookmaker.BET365, Bookmaker.EASYBET],
+}
 
 
 class DataDownloader:
@@ -17,30 +79,101 @@ class DataDownloader:
         self.base_path = base_path
         self.session = requests.Session()
 
-        # 请求头，模拟浏览器访问
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
         }
 
         self.session.headers.update(self.headers)
 
-        # 确保数据目录存在
         os.makedirs(base_path, exist_ok=True)
         os.makedirs(f"{base_path}/analysis", exist_ok=True)
-        os.makedirs(f"{base_path}/odds", exist_ok=True)
+        os.makedirs(f"{base_path}/odds/handicap", exist_ok=True)
+        os.makedirs(f"{base_path}/odds/odds", exist_ok=True)
+        os.makedirs(f"{base_path}/odds/overunder", exist_ok=True)
+
+    def get_odds_company_ids(self, match_id: str) -> Dict[int, Dict]:
+        """
+        从oddslist页面获取欧赔庄家的id参数
+        返回格式: {company_id: {"id": xxx, "name": "庄家名", "initial_odds": "x/x/x"}}
+        """
+        url = f"https://1x2d.titan007.com/{match_id}.js"
+
+        try:
+            response = self.session.get(url, timeout=30)
+            response.encoding = "utf-8"
+
+            if response.status_code != 200:
+                return {}
+
+            js_content = response.text
+            game_match = re.search(r"var game=Array\((.*?)\);", js_content, re.DOTALL)
+
+            if not game_match:
+                return {}
+
+            games_str = game_match.group(1)
+            games = games_str.split('","')
+
+            result = {}
+            for game in games:
+                game = game.strip('"')
+                parts = game.split("|")
+
+                if len(parts) >= 6:
+                    company_id = int(parts[0])
+                    data_id = parts[1]
+                    name = parts[2]
+                    initial_odds = f"{parts[3]}/{parts[4]}/{parts[5]}"
+
+                    result[company_id] = {
+                        "id": data_id,
+                        "name": name,
+                        "initial_odds": initial_odds,
+                    }
+
+            return result
+
+        except Exception as e:
+            print(f"获取欧赔庄家ID失败: {str(e)}")
+            return {}
+
+    def _get_odds_url(
+        self,
+        match_id: str,
+        odds_type: OddsType,
+        company_id: int,
+        data_id: Optional[str] = None,
+    ) -> str:
+        if odds_type == OddsType.HANDICAP:
+            return f"https://vip.titan007.com/changeDetail/handicap.aspx?id={match_id}&companyID={company_id}&l=0"
+        elif odds_type == OddsType.ODDS:
+            if data_id:
+                return f"https://1x2.titan007.com/OddsHistory.aspx?id={data_id}&sid={match_id}&cid={company_id}"
+            else:
+                return f"https://1x2.titan007.com/OddsHistory.aspx?sid={match_id}&cid={company_id}"
+        elif odds_type == OddsType.OVERUNDER:
+            return f"https://vip.titan007.com/changeDetail/overunder.aspx?id={match_id}&companyID={company_id}&l=0"
+        raise ValueError(f"Unknown odds type: {odds_type}")
+
+    def _get_odds_subdir(self, odds_type: OddsType) -> str:
+        return {
+            OddsType.HANDICAP: "handicap",
+            OddsType.ODDS: "odds",
+            OddsType.OVERUNDER: "overunder",
+        }[odds_type]
 
     def download_analysis_data(self, match_id, use_browser=True):
         """
         下载比赛分析数据
-        URL: https://zq.titan007.com/analysis/[比赛编号]sb.htm
+        URL: https://zq.titan007.com/analysis/[比赛编号]cn.htm
         use_browser: 是否使用 Playwright 浏览器获取动态内容
         """
-        url = f"https://zq.titan007.com/analysis/{match_id}sb.htm"
+        url = f"https://zq.titan007.com/analysis/{match_id}cn.htm"
 
         try:
             print(f"正在下载比赛分析数据: {url}")
@@ -54,7 +187,7 @@ class DataDownloader:
                     page = browser.new_page()
 
                     # 访问页面
-                    page.goto(url, wait_until='networkidle')
+                    page.goto(url, wait_until="networkidle")
 
                     # 等待动态内容加载完成
                     # 尝试等待包含比分的元素出现
@@ -67,9 +200,9 @@ class DataDownloader:
                         possible_selectors = [
                             'div[id*="score"]',
                             'span[id*="score"]',
-                            '.score-box',
-                            '#比分',
-                            '[class*="score"]'
+                            ".score-box",
+                            "#比分",
+                            '[class*="score"]',
                         ]
 
                         for selector in possible_selectors:
@@ -90,7 +223,7 @@ class DataDownloader:
             else:
                 # 使用 requests 获取静态内容
                 response = self.session.get(url, timeout=30)
-                response.encoding = 'utf-8'
+                response.encoding = "utf-8"
                 html_content = response.text
 
             if html_content:
@@ -98,225 +231,425 @@ class DataDownloader:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{self.base_path}/analysis/{match_id}_{timestamp}.html"
 
-                with open(filename, 'w', encoding='utf-8') as f:
+                with open(filename, "w", encoding="utf-8") as f:
                     f.write(html_content)
 
                 # 提取关键信息
                 data = {
-                    'match_id': match_id,
-                    'url': url,
-                    'download_time': timestamp,
-                    'raw_file': filename,
-                    'status': 'success',
-                    'content_length': len(html_content),
-                    'use_browser': use_browser
+                    "match_id": match_id,
+                    "url": url,
+                    "download_time": timestamp,
+                    "raw_file": filename,
+                    "status": "success",
+                    "content_length": len(html_content),
+                    "use_browser": use_browser,
                 }
 
                 # 保存JSON元数据
                 meta_file = f"{self.base_path}/analysis/{match_id}_{timestamp}.json"
-                with open(meta_file, 'w', encoding='utf-8') as f:
+                with open(meta_file, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
 
                 print(f"✓ 分析数据下载成功: {filename}")
                 return data
             else:
                 print(f"✗ 下载失败，未获取到内容")
-                return {'status': 'failed', 'error': 'No content retrieved'}
+                return {"status": "failed", "error": "No content retrieved"}
 
         except ImportError:
             print("⚠ Playwright 未安装，使用 requests 降级获取")
             return self._download_analysis_requests(match_id)
         except Exception as e:
             print(f"✗ 下载出错: {str(e)}")
-            return {'status': 'failed', 'error': str(e)}
+            return {"status": "failed", "error": str(e)}
 
     def _download_analysis_requests(self, match_id):
         """使用 requests 降级获取分析数据"""
-        url = f"https://zq.titan007.com/analysis/{match_id}sb.htm"
+        url = f"https://zq.titan007.com/analysis/{match_id}cn.htm"
 
         try:
             response = self.session.get(url, timeout=30)
-            response.encoding = 'utf-8'
+            response.encoding = "utf-8"
 
             if response.status_code == 200:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{self.base_path}/analysis/{match_id}_{timestamp}.html"
 
-                with open(filename, 'w', encoding='utf-8') as f:
+                with open(filename, "w", encoding="utf-8") as f:
                     f.write(response.text)
 
                 data = {
-                    'match_id': match_id,
-                    'url': url,
-                    'download_time': timestamp,
-                    'raw_file': filename,
-                    'status': 'success',
-                    'content_length': len(response.text),
-                    'use_browser': False,
-                    'warning': '使用静态请求获取，动态内容可能不完整'
+                    "match_id": match_id,
+                    "url": url,
+                    "download_time": timestamp,
+                    "raw_file": filename,
+                    "status": "success",
+                    "content_length": len(response.text),
+                    "use_browser": False,
+                    "warning": "使用静态请求获取，动态内容可能不完整",
                 }
 
                 meta_file = f"{self.base_path}/analysis/{match_id}_{timestamp}.json"
-                with open(meta_file, 'w', encoding='utf-8') as f:
+                with open(meta_file, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
 
                 print(f"✓ 分析数据下载成功 (静态): {filename}")
                 return data
             else:
-                return {'status': 'failed', 'error': f'HTTP {response.status_code}'}
+                return {"status": "failed", "error": f"HTTP {response.status_code}"}
 
         except Exception as e:
-            return {'status': 'failed', 'error': str(e)}
+            return {"status": "failed", "error": str(e)}
 
-    def download_odds_data(self, match_id, use_browser=True):
+    def download_odds_data(
+        self,
+        match_id: str,
+        odds_type: OddsType = OddsType.HANDICAP,
+        bookmaker: Optional[Bookmaker] = None,
+        use_browser: bool = True,
+        data_id: Optional[str] = None,
+    ) -> Dict:
         """
         下载赔率数据
-        URL: https://vip.titan007.com/changeDetail/handicap.aspx?id=[比赛编号]&companyID=1&l=0
+        :param match_id: 比赛编号
+        :param odds_type: 赔率类型 (handicap/odds/overunder)
+        :param bookmaker: 庄家 (默认下载所有庄家)
+        :param use_browser: 是否使用 Playwright
+        :param data_id: 欧赔专用的动态ID (可选，如未提供则自动获取)
         """
-        url = f"https://vip.titan007.com/changeDetail/handicap.aspx?id={match_id}&companyID=1&l=0"
+        results = []
+        bookmakers = (
+            [bookmaker] if bookmaker else BOOKMAKER_HANDICAP_IDS.get(odds_type, [])
+        )
 
-        try:
-            print(f"正在下载赔率数据: {url}")
+        if not bookmakers:
+            return {
+                "status": "failed",
+                "error": f"No bookmakers configured for {odds_type.value}",
+            }
 
-            if use_browser:
-                # 使用 Playwright 获取动态内容
-                from playwright.sync_api import sync_playwright
+        for bm in bookmakers:
+            company_id = bm.get_company_id(odds_type)
+            actual_data_id = data_id
 
-                with sync_playwright() as p:
-                    browser = p.chromium.launch(headless=True)
-                    page = browser.new_page()
+            if odds_type == OddsType.ODDS and not actual_data_id:
+                company_ids = self.get_odds_company_ids(match_id)
+                if company_id in company_ids:
+                    actual_data_id = company_ids[company_id]["id"]
 
-                    # 访问页面
-                    page.goto(url, wait_until='networkidle')
+            url = self._get_odds_url(match_id, odds_type, company_id, actual_data_id)
 
-                    # 等待赔率数据加载
-                    page.wait_for_timeout(3000)
+            try:
+                print(f"正在下载 {odds_type.value} 赔率 [{bm.name}]: {url}")
 
-                    # 获取完整页面内容
-                    html_content = page.content()
+                if use_browser:
+                    from playwright.sync_api import sync_playwright
 
-                    browser.close()
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch(headless=True)
+                        page = browser.new_page()
+                        page.goto(url, wait_until="networkidle")
+                        page.wait_for_timeout(3000)
+                        html_content = page.content()
+                        browser.close()
+                else:
+                    response = self.session.get(url, timeout=30)
+                    response.encoding = "utf-8"
+                    html_content = response.text
 
-            else:
-                response = self.session.get(url, timeout=30)
-                response.encoding = 'utf-8'
-                html_content = response.text
+                if html_content:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    subdir = self._get_odds_subdir(odds_type)
+                    filename = f"{self.base_path}/odds/{subdir}/{match_id}_{bm.value}_{timestamp}.html"
 
-            if html_content:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"{self.base_path}/odds/{match_id}_{timestamp}.html"
+                    with open(filename, "w", encoding="utf-8") as f:
+                        f.write(html_content)
 
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write(html_content)
+                    result = {
+                        "match_id": match_id,
+                        "odds_type": odds_type.value,
+                        "bookmaker": bm.value,
+                        "bookmaker_name": bm.name,
+                        "company_id": company_id,
+                        "data_id": actual_data_id,
+                        "url": url,
+                        "download_time": timestamp,
+                        "raw_file": filename,
+                        "status": "success",
+                        "content_length": len(html_content),
+                        "use_browser": use_browser,
+                    }
 
-                data = {
-                    'match_id': match_id,
-                    'url': url,
-                    'download_time': timestamp,
-                    'raw_file': filename,
-                    'status': 'success',
-                    'content_length': len(html_content),
-                    'use_browser': use_browser
-                }
+                    meta_file = f"{self.base_path}/odds/{subdir}/{match_id}_{bm.value}_{timestamp}.json"
+                    with open(meta_file, "w", encoding="utf-8") as f:
+                        json.dump(result, f, ensure_ascii=False, indent=2)
 
-                meta_file = f"{self.base_path}/odds/{match_id}_{timestamp}.json"
-                with open(meta_file, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
+                    print(f"✓ {odds_type.value} [{bm.name}] 下载成功: {filename}")
+                    results.append(result)
+                else:
+                    results.append(
+                        {
+                            "match_id": match_id,
+                            "odds_type": odds_type.value,
+                            "bookmaker": bm.value,
+                            "bookmaker_name": bm.name,
+                            "status": "failed",
+                            "error": "No content retrieved",
+                        }
+                    )
 
-                print(f"✓ 赔率数据下载成功: {filename}")
-                return data
-            else:
-                return {'status': 'failed', 'error': 'No content retrieved'}
+            except ImportError:
+                print("⚠ Playwright 未安装，使用 requests 降级获取")
+                result = self._download_odds_requests(match_id, odds_type, bm)
+                results.append(result)
+            except Exception as e:
+                print(f"✗ 下载 {bm.name} 出错: {str(e)}")
+                results.append(
+                    {
+                        "match_id": match_id,
+                        "odds_type": odds_type.value,
+                        "bookmaker": bm.value,
+                        "bookmaker_name": bm.name,
+                        "status": "failed",
+                        "error": str(e),
+                    }
+                )
 
-        except ImportError:
-            print("⚠ Playwright 未安装，使用 requests 降级获取")
-            return self._download_odds_requests(match_id)
-        except Exception as e:
-            print(f"✗ 下载出错: {str(e)}")
-            return {'status': 'failed', 'error': str(e)}
+        return {
+            "status": "success"
+            if all(r.get("status") == "success" for r in results)
+            else "partial",
+            "results": results,
+            "total": len(results),
+            "success_count": sum(1 for r in results if r.get("status") == "success"),
+        }
 
-    def _download_odds_requests(self, match_id):
+    def _download_odds_requests(
+        self,
+        match_id: str,
+        odds_type: OddsType,
+        bookmaker: Bookmaker,
+        data_id: Optional[str] = None,
+    ) -> Dict:
         """使用 requests 降级获取赔率数据"""
-        url = f"https://vip.titan007.com/changeDetail/handicap.aspx?id={match_id}&companyID=1&l=0"
+        company_id = bookmaker.get_company_id(odds_type)
+        url = self._get_odds_url(match_id, odds_type, company_id, data_id)
 
         try:
             response = self.session.get(url, timeout=30)
-            response.encoding = 'utf-8'
+            response.encoding = "utf-8"
 
             if response.status_code == 200:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"{self.base_path}/odds/{match_id}_{timestamp}.html"
+                subdir = self._get_odds_subdir(odds_type)
+                filename = f"{self.base_path}/odds/{subdir}/{match_id}_{bookmaker.value}_{timestamp}.html"
 
-                with open(filename, 'w', encoding='utf-8') as f:
+                with open(filename, "w", encoding="utf-8") as f:
                     f.write(response.text)
 
-                data = {
-                    'match_id': match_id,
-                    'url': url,
-                    'download_time': timestamp,
-                    'raw_file': filename,
-                    'status': 'success',
-                    'content_length': len(response.text),
-                    'use_browser': False
+                result = {
+                    "match_id": match_id,
+                    "odds_type": odds_type.value,
+                    "bookmaker": bookmaker.value,
+                    "bookmaker_name": bookmaker.name,
+                    "company_id": company_id,
+                    "data_id": data_id,
+                    "url": url,
+                    "download_time": timestamp,
+                    "raw_file": filename,
+                    "status": "success",
+                    "content_length": len(response.text),
+                    "use_browser": False,
                 }
 
-                meta_file = f"{self.base_path}/odds/{match_id}_{timestamp}.json"
-                with open(meta_file, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
+                meta_file = f"{self.base_path}/odds/{subdir}/{match_id}_{bookmaker.value}_{timestamp}.json"
+                with open(meta_file, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
 
-                print(f"✓ 赔率数据下载成功 (静态): {filename}")
-                return data
+                print(
+                    f"✓ {odds_type.value} [{bookmaker.name}] 下载成功 (静态): {filename}"
+                )
+                return result
             else:
-                return {'status': 'failed', 'error': f'HTTP {response.status_code}'}
-
+                return {
+                    "match_id": match_id,
+                    "odds_type": odds_type.value,
+                    "bookmaker": bookmaker.value,
+                    "bookmaker_name": bookmaker.name,
+                    "status": "failed",
+                    "error": f"HTTP {response.status_code}",
+                }
         except Exception as e:
-            return {'status': 'failed', 'error': str(e)}
+            return {
+                "match_id": match_id,
+                "odds_type": odds_type.value,
+                "bookmaker": bookmaker.value,
+                "bookmaker_name": bookmaker.name,
+                "status": "failed",
+                "error": str(e),
+            }
 
-    def download_both(self, match_id, use_browser=True):
-        """同时下载分析数据和赔率数据"""
-        print(f"\n{'='*50}")
+    def download_all_handicap(self, match_id: str, use_browser: bool = True) -> Dict:
+        """下载亚盘所有庄家赔率"""
+        results = {}
+        for bookmaker in BOOKMAKER_HANDICAP_IDS[OddsType.HANDICAP]:
+            result = self.download_odds_data(
+                match_id,
+                odds_type=OddsType.HANDICAP,
+                bookmaker=bookmaker,
+                use_browser=use_browser,
+            )
+            results[bookmaker.value] = result
+            time.sleep(1)
+        return results
+
+    def download_all_odds(self, match_id: str, use_browser: bool = True) -> Dict:
+        """下载欧赔所有庄家赔率 (威廉/bet365/易胜博/betfair)"""
+        results = {}
+        for bookmaker in BOOKMAKER_HANDICAP_IDS.get(OddsType.ODDS, []):
+            result = self.download_odds_data(
+                match_id,
+                odds_type=OddsType.ODDS,
+                bookmaker=bookmaker,
+                use_browser=use_browser,
+            )
+            results[bookmaker.value] = result
+            time.sleep(1)
+        return results
+
+    def download_all_overunder(self, match_id: str, use_browser: bool = True) -> Dict:
+        """下载大小球所有庄家赔率"""
+        results = {}
+        for bookmaker in BOOKMAKER_HANDICAP_IDS.get(OddsType.OVERUNDER, []):
+            result = self.download_odds_data(
+                match_id,
+                odds_type=OddsType.OVERUNDER,
+                bookmaker=bookmaker,
+                use_browser=use_browser,
+            )
+            results[bookmaker.value] = result
+            time.sleep(1)
+        return results
+
+    def download_both(self, match_id: str, use_browser: bool = True) -> Dict:
+        """同时下载分析数据和亚盘赔率(默认下载所有庄家)"""
+        print(f"\n{'=' * 50}")
         print(f"开始下载比赛 {match_id} 的数据")
-        print(f"{'='*50}\n")
+        print(f"{'=' * 50}\n")
 
         analysis_result = self.download_analysis_data(match_id, use_browser)
         time.sleep(1)
-        odds_result = self.download_odds_data(match_id, use_browser)
+        handicap_result = self.download_all_handicap(match_id, use_browser)
 
         return {
-            'match_id': match_id,
-            'analysis': analysis_result,
-            'odds': odds_result,
-            'total_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "match_id": match_id,
+            "analysis": analysis_result,
+            "handicap": handicap_result,
+            "total_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-    def get_downloaded_files(self, data_type='all'):
-        """获取已下载的文件列表"""
-        files = {'analysis': [], 'odds': []}
+    def download_all_odds_data(
+        self,
+        match_id: str,
+        use_browser: bool = True,
+        include_handicap: bool = True,
+        include_odds: bool = True,
+        include_overunder: bool = True,
+    ) -> Dict:
+        """下载所有类型赔率数据"""
+        print(f"\n{'=' * 50}")
+        print(f"开始下载比赛 {match_id} 的所有赔率数据")
+        print(f"{'=' * 50}\n")
 
-        if data_type in ['all', 'analysis']:
+        handicap_result = None
+        odds_result = None
+        overunder_result = None
+
+        if include_handicap:
+            print("\n--- 亚盘 Handciap ---")
+            handicap_result = self.download_all_handicap(match_id, use_browser)
+            time.sleep(1)
+
+        if include_odds:
+            print("\n--- 欧赔 Odds ---")
+            odds_result = self.download_all_odds(match_id, use_browser)
+            time.sleep(1)
+
+        if include_overunder:
+            print("\n--- 大小球 OverUnder ---")
+            overunder_result = self.download_all_overunder(match_id, use_browser)
+
+        return {
+            "match_id": match_id,
+            "total_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "handicap": handicap_result,
+            "odds": odds_result,
+            "overunder": overunder_result,
+        }
+
+    def get_downloaded_files(self, data_type: str = "all") -> Dict:
+        """获取已下载的文件列表"""
+        files = {"analysis": [], "handicap": [], "odds": [], "overunder": []}
+
+        if data_type in ["all", "analysis"]:
             analysis_dir = f"{self.base_path}/analysis"
             if os.path.exists(analysis_dir):
                 for f in os.listdir(analysis_dir):
-                    if f.endswith('.html'):
-                        files['analysis'].append(f)
+                    if f.endswith(".html"):
+                        files["analysis"].append(f)
 
-        if data_type in ['all', 'odds']:
-            odds_dir = f"{self.base_path}/odds"
+        if data_type in ["all", "handicap", "odds"]:
+            handicap_dir = f"{self.base_path}/odds/handicap"
+            if os.path.exists(handicap_dir):
+                for f in os.listdir(handicap_dir):
+                    if f.endswith(".html"):
+                        files["handicap"].append(f)
+
+            odds_dir = f"{self.base_path}/odds/odds"
             if os.path.exists(odds_dir):
                 for f in os.listdir(odds_dir):
-                    if f.endswith('.html'):
-                        files['odds'].append(f)
+                    if f.endswith(".html"):
+                        files["odds"].append(f)
+
+            overunder_dir = f"{self.base_path}/odds/overunder"
+            if os.path.exists(overunder_dir):
+                for f in os.listdir(overunder_dir):
+                    if f.endswith(".html"):
+                        files["overunder"].append(f)
 
         return files
 
 
 if __name__ == "__main__":
-    # 测试下载
     downloader = DataDownloader()
 
-    test_id = input("请输入比赛编号 (直接回车跳过测试): ").strip()
+    print("赔率下载测试")
+    print("1. 下载亚盘 (handicap) - 澳门/bet365/易胜博")
+    print("2. 下载欧赔 (odds)")
+    print("3. 下载大小球 (overunder)")
+    print("4. 下载所有赔率")
+    print("5. 下载分析数据")
 
-    if test_id:
+    choice = input("\n请选择 (直接回车跳过): ").strip()
+
+    test_id = input("请输入比赛编号: ").strip()
+
+    if not test_id:
+        print("未输入比赛编号，退出")
+        exit(0)
+
+    if choice == "1":
+        result = downloader.download_all_handicap(test_id, use_browser=True)
+    elif choice == "2":
+        result = downloader.download_all_odds(test_id, use_browser=True)
+    elif choice == "3":
+        result = downloader.download_all_overunder(test_id, use_browser=True)
+    elif choice == "4":
+        result = downloader.download_all_odds_data(test_id, use_browser=True)
+    elif choice == "5":
+        result = downloader.download_analysis_data(test_id, use_browser=True)
+    else:
         result = downloader.download_both(test_id, use_browser=True)
-        print("\n下载结果:")
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+
+    print("\n下载结果:")
+    print(json.dumps(result, ensure_ascii=False, indent=2))

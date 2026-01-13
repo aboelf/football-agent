@@ -3,9 +3,10 @@
 """
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from downloads.downloader import DataDownloader
+from downloads.downloader import DataDownloader, OddsType, Bookmaker
 import os
 import json
+from pathlib import Path
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -64,7 +65,36 @@ def download_analysis():
 
 @app.route("/api/download/odds", methods=["POST"])
 def download_odds():
-    """只下载赔率数据"""
+    """下载赔率数据"""
+    data = request.get_json()
+
+    if not data or "match_id" not in data:
+        return jsonify({"success": False, "error": "缺少比赛编号"})
+
+    match_id = data["match_id"].strip()
+    odds_type = data.get("odds_type", "handicap")
+    bookmaker = data.get("bookmaker")
+
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    try:
+        ot = OddsType(odds_type)
+        bm = None
+        if bookmaker:
+            bm = Bookmaker(bookmaker)
+
+        result = downloader.download_odds_data(match_id, odds_type=ot, bookmaker=bm)
+        return jsonify({"success": result.get("status") == "success", "data": result})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/download/odds/handicap", methods=["POST"])
+def download_handicap():
+    """下载亚盘所有庄家赔率"""
     data = request.get_json()
 
     if not data or "match_id" not in data:
@@ -73,8 +103,89 @@ def download_odds():
     match_id = data["match_id"].strip()
 
     try:
-        result = downloader.download_odds_data(match_id)
+        result = downloader.download_all_handicap(match_id)
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/download/odds/handicap/<bookmaker>", methods=["POST"])
+def download_handicap_bookmaker(bookmaker):
+    """下载亚盘指定庄家赔率"""
+    data = request.get_json()
+
+    if not data or "match_id" not in data:
+        return jsonify({"success": False, "error": "缺少比赛编号"})
+
+    match_id = data["match_id"].strip()
+
+    try:
+        bm = Bookmaker(bookmaker)
+        result = downloader.download_odds_data(
+            match_id, odds_type=OddsType.HANDICAP, bookmaker=bm
+        )
         return jsonify({"success": result.get("status") == "success", "data": result})
+    except ValueError:
+        return jsonify({"success": False, "error": f"未知的庄家: {bookmaker}"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/download/odds/odds", methods=["POST"])
+def download_odds_all():
+    """下载欧赔所有庄家赔率 (威廉/bet365/易胜博/betfair)"""
+    data = request.get_json()
+
+    if not data or "match_id" not in data:
+        return jsonify({"success": False, "error": "缺少比赛编号"})
+
+    match_id = data["match_id"].strip()
+
+    try:
+        result = downloader.download_all_odds(match_id)
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/download/odds/overunder", methods=["POST"])
+def download_overunder_all():
+    """下载大小球所有庄家赔率"""
+    data = request.get_json()
+
+    if not data or "match_id" not in data:
+        return jsonify({"success": False, "error": "缺少比赛编号"})
+
+    match_id = data["match_id"].strip()
+
+    try:
+        result = downloader.download_all_overunder(match_id)
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/download/odds/all", methods=["POST"])
+def download_all_odds():
+    """下载所有类型赔率数据"""
+    data = request.get_json()
+
+    if not data or "match_id" not in data:
+        return jsonify({"success": False, "error": "缺少比赛编号"})
+
+    match_id = data["match_id"].strip()
+    include_handicap = data.get("include_handicap", True)
+    include_odds = data.get("include_odds", True)
+    include_overunder = data.get("include_overunder", True)
+
+    try:
+        result = downloader.download_all_odds_data(
+            match_id,
+            include_handicap=include_handicap,
+            include_odds=include_odds,
+            include_overunder=include_overunder,
+        )
+        return jsonify({"success": True, "data": result})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -98,13 +209,33 @@ def view_odds_file(filename):
     return send_from_directory("./data/odds", filename)
 
 
+@app.route("/api/files/odds/handicap/<filename>")
+def view_handicap_file(filename):
+    """查看亚盘赔率文件内容"""
+    return send_from_directory("./data/odds/handicap", filename)
+
+
+@app.route("/api/files/odds/odds/<filename>")
+def view_odds_odds_file(filename):
+    """查看欧赔文件内容"""
+    return send_from_directory("./data/odds/odds", filename)
+
+
+@app.route("/api/files/odds/overunder/<filename>")
+def view_overunder_file(filename):
+    """查看大小球赔率文件内容"""
+    return send_from_directory("./data/odds/overunder", filename)
+
+
 @app.route("/api/check/<match_id>")
 def check_downloaded(match_id):
     """检查比赛数据是否已下载"""
     files = downloader.get_downloaded_files()
 
     analysis_files = [f for f in files["analysis"] if f.startswith(match_id + "_")]
+    handicap_files = [f for f in files["handicap"] if f.startswith(match_id + "_")]
     odds_files = [f for f in files["odds"] if f.startswith(match_id + "_")]
+    overunder_files = [f for f in files["overunder"] if f.startswith(match_id + "_")]
 
     return jsonify(
         {
@@ -112,9 +243,13 @@ def check_downloaded(match_id):
             "data": {
                 "match_id": match_id,
                 "has_analysis": len(analysis_files) > 0,
+                "has_handicap": len(handicap_files) > 0,
                 "has_odds": len(odds_files) > 0,
+                "has_overunder": len(overunder_files) > 0,
                 "analysis_files": analysis_files,
+                "handicap_files": handicap_files,
                 "odds_files": odds_files,
+                "overunder_files": overunder_files,
             },
         }
     )
@@ -134,9 +269,23 @@ def delete_downloaded(match_id):
                     os.remove(path)
                     deleted.append(f)
 
+        for f in files["handicap"]:
+            if f.startswith(match_id + "_"):
+                path = f"./data/odds/handicap/{f}"
+                if os.path.exists(path):
+                    os.remove(path)
+                    deleted.append(f)
+
         for f in files["odds"]:
             if f.startswith(match_id + "_"):
-                path = f"./data/odds/{f}"
+                path = f"./data/odds/odds/{f}"
+                if os.path.exists(path):
+                    os.remove(path)
+                    deleted.append(f)
+
+        for f in files["overunder"]:
+            if f.startswith(match_id + "_"):
+                path = f"./data/odds/overunder/{f}"
                 if os.path.exists(path):
                     os.remove(path)
                     deleted.append(f)
@@ -207,9 +356,23 @@ def delete_analysis_data(match_id):
                             os.remove(path)
                             deleted_files.append(filename)
 
-                for filename in os.listdir("./data/odds"):
+                for filename in os.listdir("./data/odds/handicap"):
                     if filename.startswith(match_id + "_"):
-                        path = f"./data/odds/{filename}"
+                        path = f"./data/odds/handicap/{filename}"
+                        if os.path.exists(path):
+                            os.remove(path)
+                            deleted_files.append(filename)
+
+                for filename in os.listdir("./data/odds/odds"):
+                    if filename.startswith(match_id + "_"):
+                        path = f"./data/odds/odds/{filename}"
+                        if os.path.exists(path):
+                            os.remove(path)
+                            deleted_files.append(filename)
+
+                for filename in os.listdir("./data/odds/overunder"):
+                    if filename.startswith(match_id + "_"):
+                        path = f"./data/odds/overunder/{filename}"
                         if os.path.exists(path):
                             os.remove(path)
                             deleted_files.append(filename)
@@ -232,20 +395,255 @@ def delete_analysis_data(match_id):
         return jsonify({"success": False, "error": str(e)})
 
 
-@app.route("/api/stats")
-def get_stats():
-    """获取统计信息"""
-    files = downloader.get_downloaded_files()
-    return jsonify(
-        {
-            "success": True,
-            "data": {
-                "analysis_count": len(files["analysis"]),
-                "odds_count": len(files["odds"]),
-                "total_count": len(files["analysis"]) + len(files["odds"]),
+@app.route("/api/prompt/generate", methods=["POST"])
+def generate_prompt():
+    """生成博弈论分析Prompt"""
+    try:
+        from prompts.prompt_generator import GameTheoryPromptGenerator, PromptConfig
+
+        data = request.get_json()
+        match_id = data.get("match_id")
+        bookmaker = data.get("bookmaker", "all")
+        use_all = data.get("use_all_bookmakers", True)
+        include_h2h = data.get("include_h2h", True)
+        include_league_table = data.get("include_league_table", True)
+
+        if not match_id:
+            return jsonify({"success": False, "error": "缺少比赛编号"})
+
+        config = PromptConfig(
+            include_h2h=include_h2h,
+            include_league_table=include_league_table,
+            use_all_bookmakers=use_all,
+            primary_bookmaker=bookmaker if bookmaker != "all" else "macau",
+        )
+
+        generator = GameTheoryPromptGenerator("./data")
+        prompt = generator.generate(match_id, config)
+
+        if "No basic data found" in prompt:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "未找到该比赛的基本面数据，请先下载分析数据",
+                }
+            )
+
+        source_type = "all_bookmakers" if use_all else bookmaker
+        output_path = f"prompts/{match_id}_{source_type}_prompt.txt"
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(prompt)
+
+        return jsonify(
+            {"success": True, "data": {"prompt": prompt, "saved_to": output_path}}
+        )
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/ai/analyze", methods=["POST"])
+def ai_analyze():
+    """调用AI进行博弈论分析"""
+    try:
+        import httpx
+
+        data = request.get_json()
+        prompt = data.get("prompt")
+
+        if not prompt:
+            return jsonify({"success": False, "error": "缺少分析内容"})
+
+        api_key = os.environ.get("DEEPSEEK_API_KEY")
+        if not api_key:
+            return jsonify(
+                {"success": False, "error": "未配置DEEPSEEK_API_KEY环境变量"}
+            )
+
+        client = httpx.Client(timeout=120.0)
+
+        response = client.post(
+            "https://api.deepseek.com/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
             },
-        }
-    )
+            json={
+                "model": "deepseek-chat",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "你是一位精通博弈论的足彩分析专家，请根据提供的比赛数据和赔率信息进行专业的博弈论分析。分析要逻辑清晰，有理有据。",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            },
+        )
+
+        result = response.json()
+
+        if "choices" in result:
+            ai_response = result["choices"][0]["message"]["content"]
+            return jsonify({"success": True, "data": {"response": ai_response}})
+        else:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": result.get("error", {}).get("message", "AI调用失败"),
+                }
+            )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/odds/<match_id>")
+def get_odds_data(match_id):
+    """获取比赛的赔率数据（已过滤滚球数据）"""
+    try:
+        bookmaker_filter = request.args.get("bookmaker")
+
+        handicap_path = Path("./data/odds/handicap")
+        odds_path = Path("./data/odds/odds")
+
+        handicap_files = list(handicap_path.glob(f"{match_id}_*_*.html"))
+        odds_files = list(odds_path.glob(f"{match_id}_*_*.html"))
+
+        from bs4 import BeautifulSoup
+        import re
+
+        def extract_float(text):
+            match = re.search(r"[\d.]+", text)
+            return float(match.group()) if match else None
+
+        handicap_data = {}
+        odds_data = {}
+
+        for f in handicap_files:
+            name = f.stem
+            parts = name.split("_")
+            if len(parts) < 2:
+                continue
+            bookmaker = parts[1]
+
+            if (
+                bookmaker_filter
+                and bookmaker != "all"
+                and bookmaker != bookmaker_filter
+            ):
+                continue
+
+            with open(f, "r", encoding="utf-8", errors="ignore") as fp:
+                html = fp.read()
+
+            soup = BeautifulSoup(html, "html.parser")
+            table = soup.find("table", attrs={"cellspacing": "1"})
+            if not table:
+                continue
+
+            odds_list = []
+            rows = table.find_all("tr", align="center")
+            for row in rows[1:]:
+                cols = row.find_all("td")
+                if len(cols) < 7:
+                    continue
+
+                status = cols[6].get_text(strip=True)
+                if status != "即":
+                    continue
+
+                home_odds = extract_float(cols[2].get_text(strip=True))
+                handicap = cols[3].get_text(strip=True)
+                away_odds = extract_float(cols[4].get_text(strip=True))
+                change_time = cols[5].get_text(strip=True)
+
+                if home_odds and away_odds:
+                    odds_list.append(
+                        {
+                            "home_odds": home_odds,
+                            "handicap": handicap,
+                            "away_odds": away_odds,
+                            "time": change_time,
+                        }
+                    )
+
+            if odds_list:
+                handicap_data[bookmaker] = {
+                    "bookmaker": bookmaker,
+                    "name": {
+                        "macau": "澳门",
+                        "bet365": "Bet365",
+                        "easybet": "易胜博",
+                        "betfair": "Betfair",
+                        "william": "威廉希尔",
+                    }.get(bookmaker, bookmaker),
+                    "odds": odds_list,
+                }
+
+        for f in odds_files:
+            name = f.stem
+            parts = name.split("_")
+            if len(parts) < 2:
+                continue
+            bookmaker = parts[1]
+
+            if (
+                bookmaker_filter
+                and bookmaker != "all"
+                and bookmaker != bookmaker_filter
+            ):
+                continue
+
+            with open(f, "r", encoding="utf-8", errors="ignore") as fp:
+                html = fp.read()
+
+            soup = BeautifulSoup(html, "html.parser")
+            table = soup.find("table", width="860")
+            if not table:
+                continue
+
+            odds_list = []
+            rows = table.find_all("tr", align="center")
+            for row in rows[1:]:
+                cols = row.find_all("td")
+                if len(cols) < 11:
+                    continue
+
+                home_odds = extract_float(cols[0].get_text(strip=True))
+                draw_odds = extract_float(cols[1].get_text(strip=True))
+                away_odds = extract_float(cols[2].get_text(strip=True))
+                change_time = cols[10].get_text(strip=True)
+
+                if home_odds and draw_odds and away_odds:
+                    odds_list.append(
+                        {
+                            "home": home_odds,
+                            "draw": draw_odds,
+                            "away": away_odds,
+                            "time": change_time,
+                        }
+                    )
+
+            if odds_list:
+                odds_data[bookmaker] = {
+                    "bookmaker": bookmaker,
+                    "name": {
+                        "macau": "澳门",
+                        "bet365": "Bet365",
+                        "easybet": "易胜博",
+                        "betfair": "Betfair",
+                        "william": "威廉希尔",
+                    }.get(bookmaker, bookmaker),
+                    "odds": odds_list,
+                }
+
+        return jsonify(
+            {"success": True, "data": {"handicap": handicap_data, "odds": odds_data}}
+        )
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 
 if __name__ == "__main__":

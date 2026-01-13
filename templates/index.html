@@ -830,37 +830,94 @@
             </div>
 
             <div class="right-panel">
-                <div class="card">
+                <div class="card" id="right-odds-card">
                     <div class="card-header">
-                        <h2 class="card-title">已下载文件</h2>
+                        <h2 class="card-title">赔率数据</h2>
+                        <select id="odds-bookmaker-select" style="padding: 6px 12px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.85rem;" onchange="loadOddsData()">
+                            <option value="macau">澳门</option>
+                            <option value="bet365">Bet365</option>
+                            <option value="easybet">易胜博</option>
+                            <option value="betfair">Betfair</option>
+                            <option value="william">威廉希尔</option>
+                        </select>
                     </div>
 
-                    <div class="tabs" style="margin-bottom: 16px;">
-                        <button class="tab active" onclick="switchTab('all')">全部</button>
-                        <button class="tab" onclick="switchTab('analysis')">分析</button>
-                        <button class="tab" onclick="switchTab('odds')">赔率</button>
-                    </div>
-
-                    <div class="file-list" id="fileList">
-                        <div class="empty-state">
-                            <div class="empty-icon">📂</div>
-                            <p>暂无下载文件</p>
+                    <div id="odds-content" style="display: none;">
+                        <div class="odds-section" style="margin-bottom: 16px;">
+                            <h4 style="color: var(--primary-color); font-size: 0.9rem; margin-bottom: 8px;">亚盘 (Handicap)</h4>
+                            <div id="handicap-odds-list" style="max-height: 250px; overflow-y: auto; background: var(--bg-dark); border-radius: 8px; padding: 12px;">
+                            </div>
                         </div>
+                        <div class="odds-section">
+                            <h4 style="color: var(--accent-color); font-size: 0.9rem; margin-bottom: 8px;">欧赔 (1X2)</h4>
+                            <div id="european-odds-list" style="max-height: 250px; overflow-y: auto; background: var(--bg-dark); border-radius: 8px; padding: 12px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="odds-empty" class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <p>请选择一场比赛查看赔率数据</p>
                     </div>
                 </div>
 
-                <div class="card">
+                <div class="card" id="ai-analysis-card" style="display: none;">
                     <div class="card-header">
-                        <h2 class="card-title">使用说明</h2>
+                        <h2 class="card-title">AI 博弈论分析</h2>
+                        <button class="btn btn-secondary btn-small" onclick="backToOddsView()">
+                            <span>←</span> 返回赔率
+                        </button>
                     </div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8;">
-                        <p>1. 输入比赛编号并点击下载</p>
-                        <p>2. 可选择单独下载分析或赔率数据</p>
-                        <p>3. 下载完成后可在右侧查看文件</p>
-                        <p>4. 点击"分析数据"查看已解析的比赛信息</p>
-                        <p style="margin-top: 12px; color: var(--primary-color);">
-                            💡 提示：比赛编号为数字，如 2789330
-                        </p>
+
+                    <div id="ai-analysis-content">
+                        <div class="ai-section" id="ai-prompt-section">
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">数据来源</label>
+                                <select id="ai-bookmaker-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;">
+                                    <option value="all" selected>全部庄家 (推荐)</option>
+                                    <option value="macau">澳门 (Macau)</option>
+                                    <option value="bet365">Bet365</option>
+                                    <option value="easybet">EasyBet</option>
+                                    <option value="betfair">Betfair</option>
+                                    <option value="william">William Hill</option>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">分析选项</label>
+                                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                        <input type="checkbox" id="ai-include-h2h" checked> 历史交锋
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                        <input type="checkbox" id="ai-include-table" checked> 联赛定位
+                                    </label>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%;" onclick="generateAndAnalyze()">
+                                <span>🤖</span> 生成Prompt并分析
+                            </button>
+                        </div>
+
+                        <div class="ai-section" id="ai-loading-section" style="display: none; text-align: center; padding: 40px 20px;">
+                            <div class="spinner" style="width: 40px; height: 40px; margin: 0 auto 16px;"></div>
+                            <p style="color: var(--text-secondary);">AI 正在分析比赛数据...</p>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 8px;">这可能需要几秒钟</p>
+                        </div>
+
+                        <div class="ai-section" id="ai-result-section" style="display: none;">
+                            <div style="margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <span style="color: var(--text-secondary); font-size: 0.85rem;">生成时间: <span id="ai-result-time"></span></span>
+                                    <button class="btn btn-secondary btn-small" onclick="toggleFullPrompt()">
+                                        <span id="toggle-prompt-btn">显示完整Prompt</span>
+                                    </button>
+                                </div>
+                                <div id="ai-prompt-preview" style="background: var(--bg-dark); padding: 12px; border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary); max-height: 150px; overflow-y: auto; margin-bottom: 16px; display: none;">
+                                </div>
+                            </div>
+                            <div id="ai-result-content" style="background: var(--bg-dark); padding: 16px; border-radius: 8px; font-size: 0.9rem; line-height: 1.8; white-space: pre-wrap; max-height: 500px; overflow-y: auto;">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1077,18 +1134,31 @@
 
                     await new Promise(r => setTimeout(r, 500));
 
-                    const oddsRes = await fetch('/api/download/odds', {
+                    // 下载亚盘
+                    const handicapRes = await fetch('/api/download/odds/handicap', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ match_id: matchId })
                     });
 
+                    await new Promise(r => setTimeout(r, 500));
+
+                    // 下载欧赔
+                    const oddsRes = await fetch('/api/download/odds/odds', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    const handicapData = await handicapRes.json();
                     const oddsData = await oddsRes.json();
 
-                    if (oddsData.success) {
+                    if (handicapData.success || oddsData.success) {
                         showNotification('赔率数据下载成功', 'success');
                     } else {
-                        showNotification(`赔率数据下载失败: ${oddsData.error}`, 'error');
+                        const errorMsg = (!handicapData.success ? `亚盘: ${handicapData.error}; ` : '') +
+                                        (!oddsData.success ? `欧赔: ${oddsData.error}` : '');
+                        showNotification(`赔率数据下载失败: ${errorMsg}`, 'error');
                     }
 
                 } else if (downloadAnalysis) {
@@ -1111,22 +1181,35 @@
                     }
 
                 } else if (downloadOdds) {
-                    progressStatus.textContent = '正在打开浏览器...';
-                    progressFill.style.width = '20%';
+                    progressStatus.textContent = '亚盘下载中...';
+                    progressFill.style.width = '30%';
 
-                    const res = await fetch('/api/download/odds', {
+                    const handicapRes = await fetch('/api/download/odds/handicap', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ match_id: matchId })
                     });
 
                     progressFill.style.width = '60%';
-                    const data = await res.json();
+                    progressStatus.textContent = '欧赔下载中...';
 
-                    if (data.success) {
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const oddsRes = await fetch('/api/download/odds/odds', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    const handicapData = await handicapRes.json();
+                    const oddsData = await oddsRes.json();
+
+                    if (handicapData.success || oddsData.success) {
                         showNotification('赔率数据下载成功', 'success');
                     } else {
-                        showNotification(`赔率数据下载失败: ${data.error}`, 'error');
+                        const errorMsg = (!handicapData.success ? `亚盘: ${handicapData.error}; ` : '') +
+                                        (!oddsData.success ? `欧赔: ${oddsData.error}` : '');
+                        showNotification(`赔率数据下载失败: ${errorMsg}`, 'error');
                     }
                 }
 
@@ -1163,6 +1246,7 @@
                 if (data.success) {
                     document.getElementById('totalCount').textContent = data.data.total_count;
                     document.getElementById('analysisCount').textContent = data.data.analysis_count;
+                    document.getElementById('handicapCount').textContent = data.data.handicap_count;
                     document.getElementById('oddsCount').textContent = data.data.odds_count;
                 }
             } catch (error) {
@@ -1188,16 +1272,19 @@
             let html = '';
 
             const analysisFiles = files.analysis || [];
+            const handicapFiles = files.handicap || [];
             const oddsFiles = files.odds || [];
 
             let displayFiles = [];
             if (currentTab === 'all') {
                 displayFiles = [...analysisFiles.map(f => ({ ...f, type: 'analysis' })),
+                               ...handicapFiles.map(f => ({ ...f, type: 'handicap' })),
                                ...oddsFiles.map(f => ({ ...f, type: 'odds' }))];
             } else if (currentTab === 'analysis') {
                 displayFiles = analysisFiles.map(f => ({ ...f, type: 'analysis' }));
             } else if (currentTab === 'odds') {
-                displayFiles = oddsFiles.map(f => ({ ...f, type: 'odds' }));
+                displayFiles = [...handicapFiles.map(f => ({ ...f, type: 'handicap' })),
+                               ...oddsFiles.map(f => ({ ...f, type: 'odds' }))];
             }
 
             displayFiles.sort((a, b) => b.localeCompare(a));
@@ -1215,16 +1302,20 @@
                     const matchId = nameParts[0];
                     const timeStr = nameParts[1] ? `${nameParts[1].slice(0, 4)}-${nameParts[1].slice(4, 6)}-${nameParts[1].slice(6, 8)} ${nameParts[1].slice(8, 10)}:${nameParts[1].slice(10, 12)}` : '';
 
-                    const icon = file.type === 'analysis' ? '📊' : '📈';
-                    const typeLabel = file.type === 'analysis' ? '分析' : '赔率';
+                    const typeInfo = {
+                        'analysis': { icon: '📊', label: '分析' },
+                        'handicap': { icon: '🎯', label: '亚盘' },
+                        'odds': { icon: '📈', label: '欧赔' }
+                    };
+                    const info = typeInfo[file.type] || { icon: '📄', label: '未知' };
 
                     html += `
                         <div class="file-item">
                             <div class="file-info">
-                                <div class="file-icon">${icon}</div>
+                                <div class="file-icon">${info.icon}</div>
                                 <div>
                                     <div class="file-name" title="${file}">${file}</div>
-                                    <div class="file-time">${typeLabel} · ${timeStr}</div>
+                                    <div class="file-time">${info.label} · ${timeStr}</div>
                                 </div>
                             </div>
                             <div class="file-actions">
@@ -1241,11 +1332,12 @@
         }
 
         function viewFile(type, filename) {
-            const url = type === 'analysis'
-                ? `/api/files/analysis/${filename}`
-                : `/api/files/odds/${filename}`;
-
-            window.open(url, '_blank');
+            const urls = {
+                'analysis': `/api/files/analysis/${filename}`,
+                'handicap': `/api/files/odds/handicap/${filename}`,
+                'odds': `/api/files/odds/odds/${filename}`
+            };
+            window.open(urls[type] || urls['analysis'], '_blank');
         }
 
         async function loadAnalysisList() {
@@ -1317,6 +1409,14 @@
                                     <div class="stats-label">客队积分</div>
                                 </div>
                             </div>
+                            <div style="margin-top: 12px; display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-small" style="flex: 1;" onclick="event.stopPropagation(); showOddsForMatch('${info.match_id}')">
+                                    <span>📊</span> 赔率
+                                </button>
+                                <button class="btn btn-primary btn-small" style="flex: 1;" onclick="event.stopPropagation(); showAIAnalysis('${info.match_id}')">
+                                    <span>🤖</span> AI分析
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
@@ -1366,6 +1466,14 @@
                     document.getElementById('analysis-list-card').style.display = 'none';
                     document.getElementById('analysis-detail').classList.add('show');
                     currentAnalysisTab = 'detail';
+
+                    currentMatchIdForOdds = matchId;
+                    currentMatchIdForAI = matchId;
+
+                    document.getElementById('right-odds-card').style.display = 'block';
+                    document.getElementById('ai-analysis-card').style.display = 'none';
+
+                    await loadOddsData();
                 } else {
                     showNotification('未找到该比赛的分析数据', 'error');
                 }
@@ -1397,10 +1505,6 @@
                     <div class="detail-row">
                         <span class="detail-label">联赛</span>
                         <span class="detail-value">${info.league} ${info.round_num}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">比分</span>
-                        <span class="detail-value" style="color: var(--primary-color); font-size: 1.1rem;">${info.final_score || '未完'} (半场 ${info.half_score || '-'})</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">场地</span>
@@ -1513,6 +1617,12 @@
                     </div>
                 </div>
                 ` : ''}
+
+                <div class="detail-section">
+                    <button class="btn btn-primary" style="width: 100%;" onclick="showAIAnalysis('${info.match_id}')">
+                        <span>🤖</span> AI 博弈论分析
+                    </button>
+                </div>
             `;
         }
 
@@ -1520,6 +1630,341 @@
             document.getElementById('analysis-detail').classList.remove('show');
             document.getElementById('analysis-list-card').style.display = 'block';
             currentAnalysisTab = 'list';
+        }
+
+        let currentMatchIdForOdds = null;
+        let currentMatchIdForAI = null;
+        let fullPromptText = '';
+
+        async function loadOddsData() {
+            if (!currentMatchIdForOdds) return;
+
+            const bookmaker = document.getElementById('odds-bookmaker-select').value;
+
+            try {
+                const res = await fetch(`/api/odds/${currentMatchIdForOdds}?bookmaker=${bookmaker}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    console.log('API返回数据:', data.data);
+                    console.log('选择的庄家:', bookmaker);
+                    console.log('亚盘数据keys:', Object.keys(data.data.handicap || {}));
+                    console.log('欧赔数据keys:', Object.keys(data.data.odds || {}));
+                    doRenderOddsData(data.data, bookmaker);
+                } else {
+                    console.error('API返回错误:', data.error);
+                }
+            } catch (error) {
+                console.error('加载赔率数据失败:', error);
+            }
+        }
+
+        async function showOddsForMatch(matchId) {
+            currentMatchIdForOdds = matchId;
+
+            document.getElementById('right-odds-card').style.display = 'block';
+            document.getElementById('ai-analysis-card').style.display = 'none';
+
+            await loadOddsData();
+        }
+
+        function doRenderOddsData(oddsData, selectedBookmaker) {
+            const content = document.getElementById('odds-content');
+            const empty = document.getElementById('odds-empty');
+
+            const handicapKeys = Object.keys(oddsData.handicap || {});
+            const oddsKeys = Object.keys(oddsData.odds || {});
+
+            if (handicapKeys.length === 0 && oddsKeys.length === 0) {
+                content.style.display = 'none';
+                empty.style.display = 'block';
+                empty.querySelector('p').textContent = '暂无赔率数据';
+                return;
+            }
+
+            empty.style.display = 'none';
+            content.style.display = 'block';
+
+            const handicapList = document.getElementById('handicap-odds-list');
+            const europeanList = document.getElementById('european-odds-list');
+
+            let handicapHtml = '';
+            let europeanHtml = '';
+
+            if (selectedBookmaker === 'all') {
+                handicapHtml = renderAllHandicapOdds(oddsData.handicap);
+                europeanHtml = renderAllEuropeanOdds(oddsData.odds);
+            } else {
+                handicapHtml = renderHandicapOdds(oddsData.handicap, selectedBookmaker);
+                europeanHtml = renderEuropeanOdds(oddsData.odds, selectedBookmaker);
+            }
+
+            handicapList.innerHTML = handicapHtml || '<div style="color: var(--text-secondary); text-align: center;">暂无亚盘数据</div>';
+            europeanList.innerHTML = europeanHtml || '<div style="color: var(--text-secondary); text-align: center;">暂无欧赔数据</div>';
+        }
+
+        function renderAllHandicapOdds(handicapData) {
+            if (!handicapData || handicapData.length === 0) return '';
+
+            const bookmakerGroups = {};
+            for (const [bookmaker, data] of Object.entries(handicapData)) {
+                if (data && data.odds && data.odds.length > 0) {
+                    bookmakerGroups[bookmaker] = data;
+                }
+            }
+
+            if (Object.keys(bookmakerGroups).length === 0) return '';
+
+            let html = '';
+            for (const [bookmaker, data] of Object.entries(bookmakerGroups)) {
+                const latest = data.odds[data.odds.length - 1];
+                html += `
+                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="color: var(--primary-color); font-weight: 500;">${data.name}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.8rem;">共${data.odds.length}条</span>
+                        </div>
+                        <div style="font-size: 0.9rem;">
+                            <span style="color: var(--primary-color);">${latest.home_odds}</span>
+                            <span style="margin: 0 8px; color: var(--text-secondary);">|</span>
+                            <span style="color: var(--text-primary);">${latest.handicap}</span>
+                            <span style="margin: 0 8px; color: var(--text-secondary);">|</span>
+                            <span style="color: var(--accent-color);">${latest.away_odds}</span>
+                            <span style="margin-left: 8px; color: var(--text-secondary); font-size: 0.8rem;">${latest.time}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function renderAllEuropeanOdds(oddsData) {
+            if (!oddsData || oddsData.length === 0) return '';
+
+            const bookmakerGroups = {};
+            for (const [bookmaker, data] of Object.entries(oddsData)) {
+                if (data && data.odds && data.odds.length > 0) {
+                    bookmakerGroups[bookmaker] = data;
+                }
+            }
+
+            if (Object.keys(bookmakerGroups).length === 0) return '';
+
+            let html = '';
+            for (const [bookmaker, data] of Object.entries(bookmakerGroups)) {
+                const latest = data.odds[data.odds.length - 1];
+                html += `
+                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="color: var(--accent-color); font-weight: 500;">${data.name}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.8rem;">共${data.odds.length}条</span>
+                        </div>
+                        <div style="font-size: 0.9rem;">
+                            <span style="color: var(--primary-color);">${latest.home}</span>
+                            <span style="margin: 0 8px; color: var(--text-secondary);">|</span>
+                            <span style="color: var(--text-primary);">${latest.draw}</span>
+                            <span style="margin: 0 8px; color: var(--text-secondary);">|</span>
+                            <span style="color: var(--accent-color);">${latest.away}</span>
+                            <span style="margin-left: 8px; color: var(--text-secondary); font-size: 0.8rem;">${latest.time}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function renderHandicapOdds(handicapData, bookmaker) {
+            let data;
+
+            if (handicapData[bookmaker]) {
+                data = handicapData[bookmaker];
+            } else {
+                const keys = Object.keys(handicapData);
+                if (keys.length === 0) {
+                    return '';
+                }
+
+                data = handicapData[keys[0]];
+
+                for (const key of keys) {
+                    if (key.toLowerCase() === bookmaker.toLowerCase()) {
+                        data = handicapData[key];
+                        break;
+                    }
+                }
+            }
+
+            if (!data || !data.odds || data.odds.length === 0) return '';
+
+            let html = '';
+            data.odds.slice().reverse().forEach(odds => {
+                html += `
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem;">
+                        <span><span style="color: var(--primary-color);">${odds.home_odds}</span> | ${odds.handicap} | <span style="color: var(--accent-color);">${odds.away_odds}</span></span>
+                        <span style="color: var(--text-secondary);">${odds.time}</span>
+                    </div>
+                `;
+            });
+            return html;
+        }
+
+        function renderEuropeanOdds(oddsData, bookmaker) {
+            let data;
+
+            if (oddsData[bookmaker]) {
+                data = oddsData[bookmaker];
+            } else {
+                const keys = Object.keys(oddsData);
+                if (keys.length === 0) {
+                    return '';
+                }
+
+                data = oddsData[keys[0]];
+
+                for (const key of keys) {
+                    if (key.toLowerCase() === bookmaker.toLowerCase()) {
+                        data = oddsData[key];
+                        break;
+                    }
+                }
+            }
+
+            if (!data || !data.odds || data.odds.length === 0) return '';
+
+            let html = '';
+            data.odds.slice().reverse().forEach(odds => {
+                html += `
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem;">
+                        <span><span style="color: var(--primary-color);">${odds.home}</span> | <span style="color: var(--text-primary);">${odds.draw}</span> | <span style="color: var(--accent-color);">${odds.away}</span></span>
+                        <span style="color: var(--text-secondary);">${odds.time}</span>
+                    </div>
+                `;
+            });
+            return html;
+        }
+
+        function showOddsView() {
+            document.getElementById('right-odds-card').style.display = 'block';
+            document.getElementById('ai-analysis-card').style.display = 'none';
+        }
+
+        function backToOddsView() {
+            document.getElementById('right-odds-card').style.display = 'block';
+            document.getElementById('ai-analysis-card').style.display = 'none';
+            resetAIAnalysis();
+        }
+
+        function resetAIAnalysis() {
+            document.getElementById('ai-prompt-section').style.display = 'block';
+            document.getElementById('ai-loading-section').style.display = 'none';
+            document.getElementById('ai-result-section').style.display = 'none';
+            document.getElementById('ai-prompt-preview').style.display = 'none';
+            document.getElementById('toggle-prompt-btn').textContent = '显示完整Prompt';
+        }
+
+        function showAIAnalysis(matchId) {
+            currentMatchIdForAI = matchId;
+            document.getElementById('right-odds-card').style.display = 'none';
+            document.getElementById('ai-analysis-card').style.display = 'block';
+
+            resetAIAnalysis();
+        }
+
+        async function generateAndAnalyze() {
+            if (!currentMatchIdForAI) {
+                showNotification('请先选择一场比赛', 'error');
+                return;
+            }
+
+            const bookmaker = document.getElementById('ai-bookmaker-select').value;
+            const includeH2H = document.getElementById('ai-include-h2h').checked;
+            const includeTable = document.getElementById('ai-include-table').checked;
+
+            document.getElementById('ai-prompt-section').style.display = 'none';
+            document.getElementById('ai-loading-section').style.display = 'block';
+
+            try {
+                const res = await fetch('/api/prompt/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        match_id: currentMatchIdForAI,
+                        bookmaker: bookmaker,
+                        use_all_bookmakers: bookmaker === 'all',
+                        include_h2h: includeH2H,
+                        include_league_table: includeTable
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    fullPromptText = data.data.prompt;
+
+                    document.getElementById('ai-loading-section').style.display = 'none';
+                    document.getElementById('ai-result-section').style.display = 'block';
+                    document.getElementById('ai-result-time').textContent = new Date().toLocaleString('zh-CN');
+
+                    document.getElementById('ai-prompt-preview').textContent = fullPromptText.substring(0, 500) + '...';
+
+                    await callAIAnalysis(fullPromptText);
+                } else {
+                    showNotification(data.error || '生成Prompt失败', 'error');
+                    resetAIAnalysis();
+                }
+            } catch (error) {
+                showNotification('生成Prompt失败: ' + error.message, 'error');
+                resetAIAnalysis();
+            }
+        }
+
+        async function callAIAnalysis(promptText) {
+            try {
+                const res = await fetch('/api/ai/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptText })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('ai-result-content').innerHTML = formatAIResult(data.data.response);
+                } else {
+                    document.getElementById('ai-result-content').innerHTML = '<span style="color: var(--error-color);">分析失败: ' + (data.error || '未知错误') + '</span>';
+                }
+            } catch (error) {
+                document.getElementById('ai-result-content').innerHTML = '<span style="color: var(--error-color);">分析失败: ' + error.message + '</span>';
+            }
+        }
+
+        function formatAIResult(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>')
+                .replace(/## (.*?)<br>/g, '<h3 style="color: var(--primary-color); margin: 16px 0 8px;">$1</h3>')
+                .replace(/### (.*?)<br>/g, '<h4 style="color: var(--accent-color); margin: 12px 0 6px;">$1</h4>')
+                .replace(/- (.*?)<br>/g, '<li style="margin-left: 20px;">$1</li>');
+        }
+
+        function toggleFullPrompt() {
+            const preview = document.getElementById('ai-prompt-preview');
+            const btn = document.getElementById('toggle-prompt-btn');
+
+            if (preview.style.display === 'none') {
+                preview.style.display = 'block';
+                preview.textContent = fullPromptText;
+                btn.textContent = '隐藏Prompt';
+            } else {
+                preview.style.display = 'none';
+                btn.textContent = '显示完整Prompt';
+            }
+        }
+
+        function backToFiles() {
+            document.getElementById('right-panel-title').textContent = '已下载文件';
+            document.getElementById('right-panel-tabs').style.display = 'block';
+            document.getElementById('fileList').parentElement.style.display = 'block';
+            document.getElementById('usage-card').style.display = 'block';
+            document.getElementById('ai-analysis-card').style.display = 'none';
         }
     </script>
 </body>
