@@ -8,10 +8,55 @@ import os
 import json
 from pathlib import Path
 
+os.environ.setdefault(
+    "MINIMAX_API_KEY",
+    "sk-cp-aQTgjmdyS0RmLEBBd_yy6TPDo8mfsi-e23MqbYx2e5f6D6X6a0S3jNjPLYoyPFTpyqlNGAOCsn1ySEneA6eoTuGOSLJt5DApUVUCtE__0zXONlpal-zY0r8",
+)
+
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
 # 初始化下载器
 downloader = DataDownloader(base_path="./data")
+
+AI_PROVIDERS = {
+    "deepseek": {
+        "name": "DeepSeek",
+        "models": {
+            "deepseek-chat": {
+                "name": "DeepSeek Chat",
+                "api_key_env": "DEEPSEEK_API_KEY",
+                "endpoint": "https://api.deepseek.com/chat/completions",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            }
+        },
+    },
+    "minimax": {
+        "name": "MiniMax",
+        "models": {
+            "minimax-m2.1": {
+                "name": "MiniMax-M2.1",
+                "api_key_env": "MINIMAX_API_KEY",
+                "endpoint": "https://api.minimaxi.com/anthropic/v1/messages",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "thinking": True,
+            }
+        },
+    },
+    "gemini": {
+        "name": "Gemini",
+        "models": {
+            "gemini-3-flash-preview": {
+                "name": "Gemini 3.0 Flash (Thinking)",
+                "api_key_env": "GOOGLE_API_KEY",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "thinking": True,
+            }
+        },
+    },
+}
 
 
 @app.route("/")
@@ -450,51 +495,162 @@ def ai_analyze():
 
         data = request.get_json()
         prompt = data.get("prompt")
+        provider = data.get("provider", "deepseek")
+        model = data.get("model", "deepseek-chat")
 
         if not prompt:
             return jsonify({"success": False, "error": "缺少分析内容"})
 
-        api_key = os.environ.get("DEEPSEEK_API_KEY")
+        if provider not in AI_PROVIDERS:
+            return jsonify({"success": False, "error": f"不支持的AI提供商: {provider}"})
+
+        provider_config = AI_PROVIDERS[provider]
+        if model not in provider_config["models"]:
+            return jsonify({"success": False, "error": f"不支持的模型: {model}"})
+
+        model_config = provider_config["models"][model]
+        api_key = os.environ.get(model_config["api_key_env"])
+
         if not api_key:
-            return jsonify(
-                {"success": False, "error": "未配置DEEPSEEK_API_KEY环境变量"}
-            )
-
-        client = httpx.Client(timeout=120.0)
-
-        response = client.post(
-            "https://api.deepseek.com/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "你是一位精通博弈论的足彩分析专家，请根据提供的比赛数据和赔率信息进行专业的博弈论分析。分析要逻辑清晰，有理有据。",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.7,
-                "max_tokens": 4096,
-            },
-        )
-
-        result = response.json()
-
-        if "choices" in result:
-            ai_response = result["choices"][0]["message"]["content"]
-            return jsonify({"success": True, "data": {"response": ai_response}})
-        else:
             return jsonify(
                 {
                     "success": False,
-                    "error": result.get("error", {}).get("message", "AI调用失败"),
+                    "error": f"未配置{model_config['api_key_env']}环境变量",
                 }
             )
 
+        system_prompt = "你是一位精通博弈论的足彩分析专家，请根据提供的比赛数据和赔率信息进行专业的博弈论分析。分析要逻辑清晰，有理有据。"
+
+        client = httpx.Client(timeout=180.0)
+
+        if provider == "minimax":
+            response = client.post(
+                model_config["endpoint"],
+                headers={
+                    "x-api-key": api_key,
+                    "Content-Type": "application/json",
+                    "Anthropic-Version": "2023-06-01",
+                },
+                json={
+                    "model": "MiniMax-M2.1",
+                    "max_tokens": model_config["max_tokens"],
+                    "temperature": model_config["temperature"],
+                    "system": system_prompt,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        }
+                    ],
+                },
+            )
+
+            result = response.json()
+
+            if "content" in result:
+                ai_response = ""
+                for block in result["content"]:
+                    if block.get("type") == "text":
+                        ai_response += block.get("text", "")
+                    elif block.get("type") == "thinking":
+                        ai_response += (
+                            f"\n[思考过程]\n{block.get('thinking', '')}\n[/思考过程]\n"
+                        )
+                return jsonify({"success": True, "data": {"response": ai_response}})
+            else:
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": result.get("error", {}).get("message", "AI调用失败"),
+                    }
+                )
+
+        elif provider == "gemini":
+            from google import genai
+
+            client_gemini = genai.Client(api_key=api_key)
+
+            full_content = f"{system_prompt}\n\n{prompt}"
+
+            response = client_gemini.models.generate_content(
+                model=model,
+                contents=full_content,
+                config={
+                    "temperature": model_config["temperature"],
+                    "max_output_tokens": model_config["max_tokens"],
+                    "thinking_config": {"type": "thinking"}
+                    if model_config.get("thinking")
+                    else None,
+                },
+            )
+
+            if response.text:
+                return jsonify({"success": True, "data": {"response": response.text}})
+            else:
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": "AI调用失败，未返回内容",
+                    }
+                )
+
+        else:
+            response = client.post(
+                model_config["endpoint"],
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": model_config["temperature"],
+                    "max_tokens": model_config["max_tokens"],
+                },
+            )
+
+            result = response.json()
+
+            if "choices" in result:
+                ai_response = result["choices"][0]["message"]["content"]
+                return jsonify({"success": True, "data": {"response": ai_response}})
+            else:
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": result.get("error", {}).get("message", "AI调用失败"),
+                    }
+                )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/ai/providers", methods=["GET"])
+def get_ai_providers():
+    """获取支持的AI提供商列表"""
+    try:
+        providers = []
+        for provider_id, provider_config in AI_PROVIDERS.items():
+            models = []
+            for model_id, model_config in provider_config["models"].items():
+                models.append(
+                    {
+                        "id": model_id,
+                        "name": model_config["name"],
+                    }
+                )
+            providers.append(
+                {
+                    "id": provider_id,
+                    "name": provider_config["name"],
+                    "models": models,
+                }
+            )
+        return jsonify({"success": True, "data": providers})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
