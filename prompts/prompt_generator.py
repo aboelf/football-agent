@@ -475,7 +475,7 @@ class GameTheoryPromptGenerator:
                     f"{match.get('home_team', 'N/A')} {match.get('home_goals', 0)} - {match.get('away_goals', 0)} {match.get('away_team', 'N/A')} | {result}"
                 )
 
-        prompt_parts.append("\n## 亚盘数据 (多庄家)")
+        prompt_parts.append("\n## 亚盘数据 ( 主队水位 | 盘口 | 客队水位 )")
         if handicap_data:
             prompt_parts.append(
                 f"共{len(handicap_data)}家庄家: {', '.join(d['name'] for d in handicap_data)}"
@@ -488,7 +488,7 @@ class GameTheoryPromptGenerator:
         else:
             prompt_parts.append("暂无亚盘数据")
 
-        prompt_parts.append("\n## 欧赔数据 (多庄家)")
+        prompt_parts.append("\n## 欧赔数据 ( 主胜 | 平局 | 客胜 )")
         if odds_data:
             prompt_parts.append(
                 f"共{len(odds_data)}家庄家: {', '.join(d['name'] for d in odds_data)}"
