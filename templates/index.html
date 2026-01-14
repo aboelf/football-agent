@@ -872,6 +872,20 @@
                     <div id="ai-analysis-content">
                         <div class="ai-section" id="ai-prompt-section">
                             <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">AI 提供商</label>
+                                <select id="ai-provider-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;" onchange="updateModelOptions()">
+                                    <option value="deepseek">DeepSeek</option>
+                                    <option value="minimax">MiniMax</option>
+                                    <option value="gemini">Gemini</option>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">模型选择</label>
+                                <select id="ai-model-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;">
+                                    <option value="deepseek-chat">DeepSeek Chat</option>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">数据来源</label>
                                 <select id="ai-bookmaker-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;">
                                     <option value="all" selected>全部庄家 (推荐)</option>
@@ -908,9 +922,14 @@
                             <div style="margin-bottom: 16px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                     <span style="color: var(--text-secondary); font-size: 0.85rem;">生成时间: <span id="ai-result-time"></span></span>
-                                    <button class="btn btn-secondary btn-small" onclick="toggleFullPrompt()">
-                                        <span id="toggle-prompt-btn">显示完整Prompt</span>
-                                    </button>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button class="btn btn-secondary btn-small" onclick="copyPrompt()">
+                                            <span>📋</span> <span id="copy-prompt-btn">复制Prompt</span>
+                                        </button>
+                                        <button class="btn btn-secondary btn-small" onclick="toggleFullPrompt()">
+                                            <span id="toggle-prompt-btn">显示完整</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="ai-prompt-preview" style="background: var(--bg-dark); padding: 12px; border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary); max-height: 150px; overflow-y: auto; margin-bottom: 16px; display: none;">
                                 </div>
@@ -1859,7 +1878,7 @@
             document.getElementById('ai-loading-section').style.display = 'none';
             document.getElementById('ai-result-section').style.display = 'none';
             document.getElementById('ai-prompt-preview').style.display = 'none';
-            document.getElementById('toggle-prompt-btn').textContent = '显示完整Prompt';
+            document.getElementById('toggle-prompt-btn').textContent = '显示完整';
         }
 
         function showAIAnalysis(matchId) {
@@ -1900,11 +1919,14 @@
                 if (data.success) {
                     fullPromptText = data.data.prompt;
 
-                    document.getElementById('ai-loading-section').style.display = 'none';
-                    document.getElementById('ai-result-section').style.display = 'block';
-                    document.getElementById('ai-result-time').textContent = new Date().toLocaleString('zh-CN');
-
+                    document.getElementById('ai-prompt-section').style.display = 'none';
+                    document.getElementById('ai-prompt-preview').style.display = 'block';
                     document.getElementById('ai-prompt-preview').textContent = fullPromptText.substring(0, 500) + '...';
+                    document.getElementById('toggle-prompt-btn').textContent = '显示完整';
+
+                    document.getElementById('ai-loading-section').style.display = 'block';
+                    document.getElementById('ai-loading-section').querySelector('p:nth-child(2)').textContent = 'AI 正在分析比赛数据...';
+                    document.getElementById('ai-result-time').textContent = new Date().toLocaleString('zh-CN');
 
                     await callAIAnalysis(fullPromptText);
                 } else {
@@ -1918,12 +1940,23 @@
         }
 
         async function callAIAnalysis(promptText) {
+            const provider = document.getElementById('ai-provider-select').value;
+            const model = document.getElementById('ai-model-select').value;
+
             try {
                 const res = await fetch('/api/ai/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: promptText })
+                    body: JSON.stringify({
+                        prompt: promptText,
+                        provider: provider,
+                        model: model
+                    })
                 });
+
+                document.getElementById('ai-loading-section').style.display = 'none';
+                document.getElementById('ai-result-section').style.display = 'block';
+
                 const data = await res.json();
 
                 if (data.success) {
@@ -1932,8 +1965,35 @@
                     document.getElementById('ai-result-content').innerHTML = '<span style="color: var(--error-color);">分析失败: ' + (data.error || '未知错误') + '</span>';
                 }
             } catch (error) {
+                document.getElementById('ai-loading-section').style.display = 'none';
+                document.getElementById('ai-result-section').style.display = 'block';
                 document.getElementById('ai-result-content').innerHTML = '<span style="color: var(--error-color);">分析失败: ' + error.message + '</span>';
             }
+        }
+
+        const modelOptions = {
+            'deepseek': [
+                { value: 'deepseek-chat', text: 'DeepSeek Chat' }
+            ],
+            'minimax': [
+                { value: 'minimax-m2.1', text: 'MiniMax-M2.1' }
+            ],
+            'gemini': [
+                { value: 'gemini-3-flash-preview', text: 'Gemini 3.0 Flash (Thinking)' }
+            ]
+        };
+
+        function updateModelOptions() {
+            const provider = document.getElementById('ai-provider-select').value;
+            const modelSelect = document.getElementById('ai-model-select');
+
+            modelSelect.innerHTML = '';
+            modelOptions[provider].forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                modelSelect.appendChild(option);
+            });
         }
 
         function formatAIResult(text) {
@@ -1952,10 +2012,24 @@
             if (preview.style.display === 'none') {
                 preview.style.display = 'block';
                 preview.textContent = fullPromptText;
-                btn.textContent = '隐藏Prompt';
+                btn.textContent = '隐藏完整';
             } else {
                 preview.style.display = 'none';
-                btn.textContent = '显示完整Prompt';
+                btn.textContent = '显示完整';
+            }
+        }
+
+        async function copyPrompt() {
+            try {
+                await navigator.clipboard.writeText(fullPromptText);
+                const btn = document.getElementById('copy-prompt-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            } catch (error) {
+                showNotification('复制失败', 'error');
             }
         }
 

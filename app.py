@@ -26,7 +26,7 @@ AI_PROVIDERS = {
                 "name": "DeepSeek Chat",
                 "api_key_env": "DEEPSEEK_API_KEY",
                 "endpoint": "https://api.deepseek.com/chat/completions",
-                "temperature": 0.7,
+                "temperature": 0.3,
                 "max_tokens": 4096,
             }
         },
@@ -38,7 +38,7 @@ AI_PROVIDERS = {
                 "name": "MiniMax-M2.1",
                 "api_key_env": "MINIMAX_API_KEY",
                 "endpoint": "https://api.minimaxi.com/anthropic/v1/messages",
-                "temperature": 0.7,
+                "temperature": 0.3,
                 "max_tokens": 4096,
                 "thinking": True,
             }
@@ -50,7 +50,7 @@ AI_PROVIDERS = {
             "gemini-3-flash-preview": {
                 "name": "Gemini 3.0 Flash (Thinking)",
                 "api_key_env": "GOOGLE_API_KEY",
-                "temperature": 0.7,
+                "temperature": 0.3,
                 "max_tokens": 4096,
                 "thinking": True,
             }
@@ -521,7 +521,7 @@ def ai_analyze():
 
         system_prompt = "你是一位精通博弈论的足彩分析专家，请根据提供的比赛数据和赔率信息进行专业的博弈论分析。分析要逻辑清晰，有理有据。"
 
-        client = httpx.Client(timeout=180.0)
+        client = httpx.Client(timeout=300.0)
 
         if provider == "minimax":
             response = client.post(
@@ -543,7 +543,16 @@ def ai_analyze():
                         }
                     ],
                 },
+                timeout=300.0,
             )
+
+            if response.status_code != 200:
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": f"MiniMax API错误 (状态码 {response.status_code})",
+                    }
+                )
 
             result = response.json()
 
@@ -561,7 +570,7 @@ def ai_analyze():
                 return jsonify(
                     {
                         "success": False,
-                        "error": result.get("error", {}).get("message", "AI调用失败"),
+                        "error": "AI返回格式未知",
                     }
                 )
 
@@ -610,6 +619,7 @@ def ai_analyze():
                     "temperature": model_config["temperature"],
                     "max_tokens": model_config["max_tokens"],
                 },
+                timeout=300.0,
             )
 
             result = response.json()
