@@ -1901,6 +1901,8 @@
 
             document.getElementById('ai-prompt-section').style.display = 'none';
             document.getElementById('ai-loading-section').style.display = 'block';
+            document.getElementById('ai-loading-section').querySelector('p:nth-child(2)').textContent = '正在生成Prompt...';
+            document.getElementById('ai-result-time').textContent = new Date().toLocaleString('zh-CN');
 
             try {
                 const res = await fetch('/api/prompt/generate', {
@@ -1928,7 +1930,10 @@
                     document.getElementById('ai-loading-section').querySelector('p:nth-child(2)').textContent = 'AI 正在分析比赛数据...';
                     document.getElementById('ai-result-time').textContent = new Date().toLocaleString('zh-CN');
 
-                    await callAIAnalysis(fullPromptText);
+                    document.getElementById('ai-result-section').style.display = 'block';
+                    document.getElementById('ai-result-content').innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">AI 分析中...</div>';
+
+                    callAIAnalysis(fullPromptText);
                 } else {
                     showNotification(data.error || '生成Prompt失败', 'error');
                     resetAIAnalysis();
