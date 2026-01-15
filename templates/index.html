@@ -1121,6 +1121,7 @@
             }
 
             matchId = matchId.trim();
+            const downloadAnalysis = document.querySelector('#option-analysis input').checked;
             const downloadOdds = document.querySelector('#option-odds input').checked;
 
             if (!downloadAnalysis && !downloadOdds) {
@@ -1288,10 +1289,14 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    document.getElementById('totalCount').textContent = data.data.total_count;
-                    document.getElementById('analysisCount').textContent = data.data.analysis_count;
-                    document.getElementById('handicapCount').textContent = data.data.handicap_count;
-                    document.getElementById('oddsCount').textContent = data.data.odds_count;
+                    const setText = (id, value) => {
+                        const el = document.getElementById(id);
+                        if (el) el.textContent = value;
+                    };
+                    setText('totalCount', data.data.total_count || 0);
+                    setText('analysisCount', data.data.analysis_count || 0);
+                    setText('handicapCount', data.data.handicap_count || 0);
+                    setText('oddsCount', data.data.odds_count || 0);
                 }
             } catch (error) {
                 console.error('获取统计失败:', error);
@@ -1313,6 +1318,8 @@
 
         function renderFileList(files) {
             const container = document.getElementById('fileList');
+            if (!container) return;
+
             let html = '';
 
             const analysisFiles = files.analysis || [];
@@ -1321,17 +1328,17 @@
 
             let displayFiles = [];
             if (currentTab === 'all') {
-                displayFiles = [...analysisFiles.map(f => ({ ...f, type: 'analysis' })),
-                               ...handicapFiles.map(f => ({ ...f, type: 'handicap' })),
-                               ...oddsFiles.map(f => ({ ...f, type: 'odds' }))];
+                displayFiles = [...analysisFiles.map(f => ({ filename: f, type: 'analysis' })),
+                               ...handicapFiles.map(f => ({ filename: f, type: 'handicap' })),
+                               ...oddsFiles.map(f => ({ filename: f, type: 'odds' }))];
             } else if (currentTab === 'analysis') {
-                displayFiles = analysisFiles.map(f => ({ ...f, type: 'analysis' }));
+                displayFiles = analysisFiles.map(f => ({ filename: f, type: 'analysis' }));
             } else if (currentTab === 'odds') {
-                displayFiles = [...handicapFiles.map(f => ({ ...f, type: 'handicap' })),
-                               ...oddsFiles.map(f => ({ ...f, type: 'odds' }))];
+                displayFiles = [...handicapFiles.map(f => ({ filename: f, type: 'handicap' })),
+                               ...oddsFiles.map(f => ({ filename: f, type: 'odds' }))];
             }
 
-            displayFiles.sort((a, b) => b.localeCompare(a));
+            displayFiles.sort((a, b) => String(b.filename).localeCompare(String(a.filename)));
 
             if (displayFiles.length === 0) {
                 html = `
@@ -1342,7 +1349,7 @@
                 `;
             } else {
                 displayFiles.forEach(file => {
-                    const nameParts = file.replace('.html', '').split('_');
+                    const nameParts = file.filename.replace('.html', '').split('_');
                     const matchId = nameParts[0];
                     const timeStr = nameParts[1] ? `${nameParts[1].slice(0, 4)}-${nameParts[1].slice(4, 6)}-${nameParts[1].slice(6, 8)} ${nameParts[1].slice(8, 10)}:${nameParts[1].slice(10, 12)}` : '';
 
@@ -1358,12 +1365,12 @@
                             <div class="file-info">
                                 <div class="file-icon">${info.icon}</div>
                                 <div>
-                                    <div class="file-name" title="${file}">${file}</div>
+                                    <div class="file-name" title="${file.filename}">${file.filename}</div>
                                     <div class="file-time">${info.label} · ${timeStr}</div>
                                 </div>
                             </div>
                             <div class="file-actions">
-                                <button class="btn btn-secondary btn-small" onclick="viewFile('${file.type}', '${file}')">
+                                <button class="btn btn-secondary btn-small" onclick="viewFile('${file.type}', '${file.filename}')">
                                     查看
                                 </button>
                             </div>
@@ -1959,6 +1966,8 @@
 
                 if (data.success) {
                     fullPromptText = data.data.prompt;
+                    const matchIdFromApi = data.data.match_id || currentMatchIdForAI || 'unknown';
+                    console.log('[Prompt生成] API返回match_id:', data.data.match_id, '前端currentMatchIdForAI:', currentMatchIdForAI, '最终matchId:', matchIdFromApi);
 
                     document.getElementById('ai-prompt-section').style.display = 'none';
                     document.getElementById('ai-prompt-preview').style.display = 'block';
@@ -1972,7 +1981,7 @@
                     document.getElementById('ai-result-section').style.display = 'block';
                     document.getElementById('ai-result-content').innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">AI 分析中...</div>';
 
-                    callAIAnalysis(fullPromptText);
+                    callAIAnalysis(fullPromptText, matchIdFromApi);
                 } else {
                     showNotification(data.error || '生成Prompt失败', 'error');
                     resetAIAnalysis();
@@ -1983,9 +1992,11 @@
             }
         }
 
-        async function callAIAnalysis(promptText) {
+        async function callAIAnalysis(promptText, matchId) {
             const provider = document.getElementById('ai-provider-select').value;
             const model = document.getElementById('ai-model-select').value;
+            const finalMatchId = matchId || currentMatchIdForAI || 'unknown';
+            console.log('[AI分析] matchId参数:', matchId, 'currentMatchIdForAI:', currentMatchIdForAI, '最终matchId:', finalMatchId);
 
             try {
                 const res = await fetch('/api/ai/analyze', {
@@ -1994,7 +2005,8 @@
                     body: JSON.stringify({
                         prompt: promptText,
                         provider: provider,
-                        model: model
+                        model: model,
+                        match_id: finalMatchId
                     })
                 });
 
@@ -2102,11 +2114,17 @@
         }
 
         function backToFiles() {
-            document.getElementById('right-panel-title').textContent = '已下载文件';
-            document.getElementById('right-panel-tabs').style.display = 'block';
-            document.getElementById('fileList').parentElement.style.display = 'block';
-            document.getElementById('usage-card').style.display = 'block';
-            document.getElementById('ai-analysis-card').style.display = 'none';
+            const rightPanelTitle = document.getElementById('right-panel-title');
+            const rightPanelTabs = document.getElementById('right-panel-tabs');
+            const fileListParent = document.getElementById('fileList');
+            const usageCard = document.getElementById('usage-card');
+            const aiAnalysisCard = document.getElementById('ai-analysis-card');
+
+            if (rightPanelTitle) rightPanelTitle.textContent = '赔率数据';
+            if (rightPanelTabs) rightPanelTabs.style.display = 'block';
+            if (fileListParent && fileListParent.parentElement) fileListParent.parentElement.style.display = 'block';
+            if (usageCard) usageCard.style.display = 'block';
+            if (aiAnalysisCard) aiAnalysisCard.style.display = 'none';
         }
     </script>
 </body>

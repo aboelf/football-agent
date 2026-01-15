@@ -7,6 +7,7 @@ from downloads.downloader import DataDownloader, OddsType, Bookmaker
 import os
 import json
 from pathlib import Path
+from datetime import datetime
 
 os.environ.setdefault(
     "MINIMAX_API_KEY",
@@ -22,6 +23,28 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 
 # 初始化下载器
 downloader = DataDownloader(base_path="./data")
+
+
+def save_ai_result(match_id, model, ai_response):
+    """保存AI分析结果到文件"""
+    try:
+        results_dir = Path("results")
+        results_dir.mkdir(exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        safe_model_name = model.replace("/", "_").replace(":", "_")
+        filename = f"{match_id}_{safe_model_name}_{timestamp}.txt"
+        filepath = results_dir / filename
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(ai_response)
+
+        print(f"[保存结果] 已保存到: {filepath}")
+        return True
+    except Exception as e:
+        print(f"[保存结果] 保存失败: {e}")
+        return False
+
 
 AI_PROVIDERS = {
     "minimax": {
@@ -296,6 +319,48 @@ def list_files():
     return jsonify({"success": True, "data": files})
 
 
+@app.route("/api/stats")
+def get_stats():
+    """获取统计数据"""
+    try:
+        files = downloader.get_downloaded_files()
+
+        analysis_files = files.get("analysis", [])
+        handicap_files = files.get("handicap", [])
+        odds_files = files.get("odds", [])
+        overunder_files = files.get("overunder", [])
+
+        # 获取已分析的比赛数据
+        basic_data_path = "./data/basic_data.json"
+        analyzed_matches = []
+        if os.path.exists(basic_data_path):
+            with open(basic_data_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    analyzed_matches = data
+                elif isinstance(data, dict):
+                    analyzed_matches = [data]
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "total_count": len(analysis_files)
+                    + len(handicap_files)
+                    + len(odds_files)
+                    + len(overunder_files),
+                    "analysis_count": len(analysis_files),
+                    "handicap_count": len(handicap_files),
+                    "odds_count": len(odds_files),
+                    "overunder_count": len(overunder_files),
+                    "match_count": len(analyzed_matches),
+                },
+            }
+        )
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
 @app.route("/api/files/analysis/<filename>")
 def view_analysis_file(filename):
     """查看分析文件内容"""
@@ -535,7 +600,14 @@ def generate_prompt():
             f.write(prompt)
 
         return jsonify(
-            {"success": True, "data": {"prompt": prompt, "saved_to": output_path}}
+            {
+                "success": True,
+                "data": {
+                    "prompt": prompt,
+                    "saved_to": output_path,
+                    "match_id": match_id,
+                },
+            }
         )
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
@@ -551,6 +623,11 @@ def ai_analyze():
         prompt = data.get("prompt")
         provider = data.get("provider", "deepseek")
         model = data.get("model", "deepseek-chat")
+        match_id = data.get("match_id", "unknown")
+
+        print(
+            f"[AI分析] 收到请求: match_id={match_id}, model={model}, provider={provider}"
+        )
 
         if not prompt:
             return jsonify({"success": False, "error": "缺少分析内容"})
@@ -625,6 +702,7 @@ def ai_analyze():
                     if len(ai_response) > 500
                     else f"[AI分析] MiniMax 原始返回内容:\n{ai_response}"
                 )
+                save_ai_result(match_id, model, ai_response)
                 return jsonify({"success": True, "data": {"response": ai_response}})
             else:
                 return jsonify(
@@ -660,6 +738,7 @@ def ai_analyze():
                     if len(response.text) > 500
                     else f"[AI分析] Gemini 原始返回内容:\n{response.text}"
                 )
+                save_ai_result(match_id, model, response.text)
                 return jsonify({"success": True, "data": {"response": response.text}})
             else:
                 return jsonify(
@@ -698,6 +777,7 @@ def ai_analyze():
                     if len(ai_response) > 500
                     else f"[AI分析] 原始返回内容:\n{ai_response}"
                 )
+                save_ai_result(match_id, model, ai_response)
                 return jsonify({"success": True, "data": {"response": ai_response}})
             else:
                 return jsonify(

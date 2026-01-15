@@ -207,11 +207,11 @@ def parse_team_stats_from_table(
 ) -> Dict[str, TeamStats]:
     stats = {}
 
-    rank_pattern = rf"\[英超-(\d+)\]{team_name}"
+    rank_pattern = r"\[([^\]-]+)-(\d+)\]" + re.escape(team_name)
     rank_match = re.search(rank_pattern, table_html)
-    rank = int(rank_match.group(1)) if rank_match else 0
+    rank = int(rank_match.group(2)) if rank_match else 0
 
-    team_start_pattern = rf"\[英超-\d+\]{re.escape(team_name)}"
+    team_start_pattern = r"\[[^\]]+\]" + re.escape(team_name)
     team_start_match = re.search(team_start_pattern, table_html)
 
     if not team_start_match:
@@ -220,7 +220,7 @@ def parse_team_stats_from_table(
     team_start = team_start_match.start()
 
     team_section_pattern = (
-        rf"\[英超-\d+\]{re.escape(team_name)}.*?(?=</table>|<script|var\s)"
+        r"\[[^\]]+\]" + re.escape(team_name) + r".*?(?=</table>|<script|var\s)"
     )
     team_match = re.search(team_section_pattern, table_html[team_start:], re.DOTALL)
 
