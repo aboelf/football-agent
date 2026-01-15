@@ -86,6 +86,52 @@ class GameTheoryPromptGenerator:
         match = re.search(r"[\d.]+", text)
         return float(match.group()) if match else None
 
+    def _convert_handicap_to_decimal(self, handicap: str) -> str:
+        handicap = handicap.strip()
+        # return handicap
+        mapping = {
+            "半球": "-0.5",
+            "半球/一球": "-0.75",
+            "一球": "-1.0",
+            "一球/球半": "-1.25",
+            "球半": "-1.5",
+            "球半/两球": "-1.75",
+            "两球": "-2.0",
+            "两球/两球半": "-2.25",
+            "两球半": "-2.5",
+            "两球半/三球": "-2.75",
+            "三球": "-3.0",
+            "平手": "0",
+            "平手/半球": "-0.25",
+            "受让平手/半球": "+0.25",
+            "受让半球": "+0.5",
+            "受让半球/一球": "+0.75",
+            "受让一球": "+1.0",
+            "受让一球/球半": "+1.25",
+            "受让球半": "+1.5",
+            "受让球半/两球": "+1.75",
+            "受让两球": "+2.0",
+            "受让两球/两球半": "+2.25",
+            "受让两球半": "+2.5",
+            "受让两球半/三球": "+2.75",
+            "受让三球": "+3.0",
+        }
+        if handicap in mapping:
+            return mapping[handicap]
+        if handicap.startswith("受让"):
+            real_handicap = handicap[2:]
+            if real_handicap in mapping:
+                return mapping[real_handicap]
+        if handicap.startswith("客让"):
+            real_handicap = handicap[2:]
+            if real_handicap in mapping:
+                return mapping[real_handicap]
+        if handicap.startswith("主让"):
+            real_handicap = handicap[2:]
+            if real_handicap in mapping:
+                return mapping[real_handicap]
+        return handicap
+
     def _load_basic_data(self) -> dict:
         """加载基本面数据（第一场比赛）"""
         if not self.basic_data_path.exists():
@@ -246,14 +292,38 @@ class GameTheoryPromptGenerator:
         if show_details and len(odds_list) > 0:
             lines.append(f"**{name} 亚盘变化** (共{len(odds_list)}条记录)")
             for odds in reversed(odds_list):
+                converted_handicap = self._convert_handicap_to_decimal(odds["handicap"])
+                if odds["handicap"] == "平手":
+                    handicap_label = ""
+                else:
+                    handicap_label = (
+                        "主队受让"
+                        if odds["handicap"].startswith("受让")
+                        else "主队让球"
+                    )
+
+                handicap_display = f"{converted_handicap} {handicap_label}".strip()
                 lines.append(
-                    f"  {odds['home_odds']} | {odds['handicap']} | {odds['away_odds']} | {odds['time']}"
+                    f"  {odds['home_odds']} | {handicap_display} | {odds['away_odds']} | {odds['time']}"
                 )
         else:
             latest = odds_list[-1] if odds_list else None
             if latest:
+                converted_handicap = self._convert_handicap_to_decimal(
+                    latest["handicap"]
+                )
+                if latest["handicap"] == "平手":
+                    handicap_label = ""
+                else:
+                    handicap_label = (
+                        "主队受让"
+                        if latest["handicap"].startswith("受让")
+                        else "主队让球"
+                    )
+
+                handicap_display = f"{converted_handicap} {handicap_label}".strip()
                 lines.append(
-                    f"**{name}**: {latest['home_odds']} | {latest['handicap']} | {latest['away_odds']}"
+                    f"**{name}**: {latest['home_odds']} | {handicap_display} | {latest['away_odds']}"
                 )
 
         return "\n".join(lines)
@@ -320,8 +390,11 @@ class GameTheoryPromptGenerator:
             f"- 客胜分歧: 最高 {max_away[0]}@{max_away[1]}, 最低 {min_away[0]}@{min_away[1]}"
         )
 
-        handicaps = [(o["name"], o["handicap"]) for o in latest_odds]
-        unique_handicaps = list(set(h[1] for h in handicaps))
+        converted_handicaps = []
+        for o in latest_odds:
+            converted = self._convert_handicap_to_decimal(o["handicap"])
+            converted_handicaps.append((o["name"], converted))
+        unique_handicaps = list(set(h[1] for h in converted_handicaps))
         if len(unique_handicaps) > 1:
             lines.append(f"- 盘口分歧: {', '.join(unique_handicaps)}")
 
@@ -509,7 +582,8 @@ class GameTheoryPromptGenerator:
             for data in handicap_data:
                 if data.get("odds"):
                     latest = data["odds"][-1]
-                    handicaps.append(latest["handicap"])
+                    converted = self._convert_handicap_to_decimal(latest["handicap"])
+                    handicaps.append(converted)
             if handicaps:
                 from collections import Counter
 
