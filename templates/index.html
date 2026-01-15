@@ -1001,6 +1001,10 @@
         let isDownloading = false;
         let pendingMatchId = null;
 
+        function filterDigits(input) {
+            input.value = input.value.replace(/\D/g, '');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             refreshStats();
             refreshFiles();
@@ -1055,11 +1059,7 @@
             pendingMatchId = null;
         }
 
-        async         function filterDigits(input) {
-            input.value = input.value.replace(/\D/g, '');
-        }
-
-        function checkExistingData() {
+        async function checkExistingData() {
             const matchId = document.getElementById('matchId').value.trim();
             if (!matchId) return;
 

@@ -1,1 +1,9 @@
 data
+prompts/save
+__pycache__/
+*.pyc
+**/__pycache__/
+**/*.pyc
+parsers/__pycache__/analysis_parser.cpython-314.pyc
+__pycache__/app.cpython-314.pyc
+results/
