@@ -594,7 +594,7 @@ def generate_prompt():
             )
 
         source_type = "all_bookmakers" if use_all else bookmaker
-        output_path = f"prompts/{match_id}_{source_type}_prompt.txt"
+        output_path = f"prompts/save/{match_id}_{source_type}_prompt.txt"
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(prompt)

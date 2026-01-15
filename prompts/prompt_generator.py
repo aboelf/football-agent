@@ -671,7 +671,7 @@ def main():
     print(f"为比赛 {match_id} 生成Prompt (使用全部庄家)...")
     prompt = generator.generate(match_id, config)
 
-    output_path = f"prompts/{match_id}_multi_bookmaker_prompt.txt"
+    output_path = f"prompts/save/{match_id}_multi_bookmaker_prompt.txt"
     Path(output_path).parent.mkdir(exist_ok=True)
     generator.save_to_file(match_id, output_path, config)
     print(f"已保存到: {output_path}")
