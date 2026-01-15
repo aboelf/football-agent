@@ -770,7 +770,7 @@
 
                             <div class="input-group">
                                 <div class="input-wrapper">
-                                    <input type="text" id="matchId" placeholder="请输入比赛编号 (如: 2789330)" oninput="checkExistingData()" />
+                                    <input type="text" id="matchId" placeholder="请输入比赛编号 (如: 2789330)" oninput="filterDigits(this); checkExistingData()" />
                                 </div>
                                 <button class="btn btn-primary" onclick="downloadData()">
                                     <span>⬇️</span> 下载
@@ -1055,7 +1055,11 @@
             pendingMatchId = null;
         }
 
-        async function checkExistingData() {
+        async         function filterDigits(input) {
+            input.value = input.value.replace(/\D/g, '');
+        }
+
+        function checkExistingData() {
             const matchId = document.getElementById('matchId').value.trim();
             if (!matchId) return;
 
