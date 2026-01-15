@@ -13,24 +13,17 @@ os.environ.setdefault(
     "sk-cp-aQTgjmdyS0RmLEBBd_yy6TPDo8mfsi-e23MqbYx2e5f6D6X6a0S3jNjPLYoyPFTpyqlNGAOCsn1ySEneA6eoTuGOSLJt5DApUVUCtE__0zXONlpal-zY0r8",
 )
 
+os.environ.setdefault(
+    "LOCAL_GEMINI_API_KEY",
+    "sk-geminixxxxx",
+)
+
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
 # 初始化下载器
 downloader = DataDownloader(base_path="./data")
 
 AI_PROVIDERS = {
-    "deepseek": {
-        "name": "DeepSeek",
-        "models": {
-            "deepseek-chat": {
-                "name": "DeepSeek Chat",
-                "api_key_env": "DEEPSEEK_API_KEY",
-                "endpoint": "https://api.deepseek.com/chat/completions",
-                "temperature": 0.3,
-                "max_tokens": 4096,
-            }
-        },
-    },
     "minimax": {
         "name": "MiniMax",
         "models": {
@@ -38,22 +31,39 @@ AI_PROVIDERS = {
                 "name": "MiniMax-M2.1",
                 "api_key_env": "MINIMAX_API_KEY",
                 "endpoint": "https://api.minimaxi.com/anthropic/v1/messages",
-                "temperature": 0.3,
+                "temperature": 0.7,
                 "max_tokens": 4096,
                 "thinking": True,
             }
         },
     },
-    "gemini": {
-        "name": "Gemini",
+    "local-gemini": {
+        "name": "本地 Gemini (兼容OpenAI)",
         "models": {
-            "gemini-3-flash-preview": {
+            "gemini-3.0-flash": {
+                "name": "Gemini 3.0 Flash",
+                "api_key_env": "LOCAL_GEMINI_API_KEY",
+                "endpoint": "http://localhost:8000/v1/chat/completions",
+                "temperature": 0.3,
+                "max_tokens": 4096,
+                "thinking": False,
+            },
+            "gemini-3.0-pro": {
+                "name": "Gemini 3.0 Pro",
+                "api_key_env": "LOCAL_GEMINI_API_KEY",
+                "endpoint": "http://localhost:8000/v1/chat/completions",
+                "temperature": 0.3,
+                "max_tokens": 4096,
+                "thinking": False,
+            },
+            "gemini-3.0-flash-thinking": {
                 "name": "Gemini 3.0 Flash (Thinking)",
-                "api_key_env": "GOOGLE_API_KEY",
+                "api_key_env": "LOCAL_GEMINI_API_KEY",
+                "endpoint": "http://localhost:8000/v1/chat/completions",
                 "temperature": 0.3,
                 "max_tokens": 4096,
                 "thinking": True,
-            }
+            },
         },
     },
 }
@@ -73,8 +83,11 @@ def download_data():
     if not data or "match_id" not in data:
         return jsonify({"success": False, "error": "缺少比赛编号"})
 
-    match_id = data["match_id"].strip()
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
 
+    match_id = str(match_id).strip()
     if not match_id:
         return jsonify({"success": False, "error": "比赛编号不能为空"})
 
@@ -93,7 +106,13 @@ def download_analysis():
     if not data or "match_id" not in data:
         return jsonify({"success": False, "error": "缺少比赛编号"})
 
-    match_id = data["match_id"].strip()
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
 
     try:
         result = downloader.download_analysis_data(match_id)
@@ -116,12 +135,16 @@ def download_odds():
     if not data or "match_id" not in data:
         return jsonify({"success": False, "error": "缺少比赛编号"})
 
-    match_id = data["match_id"].strip()
-    odds_type = data.get("odds_type", "handicap")
-    bookmaker = data.get("bookmaker")
-
+    match_id = data.get("match_id")
     if not match_id:
         return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    odds_type = data.get("odds_type", "handicap")
+    bookmaker = data.get("bookmaker")
 
     try:
         ot = OddsType(odds_type)
@@ -145,7 +168,13 @@ def download_handicap():
     if not data or "match_id" not in data:
         return jsonify({"success": False, "error": "缺少比赛编号"})
 
-    match_id = data["match_id"].strip()
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
 
     try:
         result = downloader.download_all_handicap(match_id)
@@ -162,7 +191,13 @@ def download_handicap_bookmaker(bookmaker):
     if not data or "match_id" not in data:
         return jsonify({"success": False, "error": "缺少比赛编号"})
 
-    match_id = data["match_id"].strip()
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
 
     try:
         bm = Bookmaker(bookmaker)
@@ -184,7 +219,13 @@ def download_odds_all():
     if not data or "match_id" not in data:
         return jsonify({"success": False, "error": "缺少比赛编号"})
 
-    match_id = data["match_id"].strip()
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
 
     try:
         result = downloader.download_all_odds(match_id)
@@ -201,7 +242,13 @@ def download_overunder_all():
     if not data or "match_id" not in data:
         return jsonify({"success": False, "error": "缺少比赛编号"})
 
-    match_id = data["match_id"].strip()
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
 
     try:
         result = downloader.download_all_overunder(match_id)
@@ -218,7 +265,14 @@ def download_all_odds():
     if not data or "match_id" not in data:
         return jsonify({"success": False, "error": "缺少比赛编号"})
 
-    match_id = data["match_id"].strip()
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
     include_handicap = data.get("include_handicap", True)
     include_odds = data.get("include_odds", True)
     include_overunder = data.get("include_overunder", True)
@@ -565,6 +619,12 @@ def ai_analyze():
                         ai_response += (
                             f"\n[思考过程]\n{block.get('thinking', '')}\n[/思考过程]\n"
                         )
+                print(f"[AI分析] MiniMax 原始返回结果长度: {len(ai_response)} 字符")
+                print(
+                    f"[AI分析] MiniMax 原始返回内容:\n{ai_response[:500]}..."
+                    if len(ai_response) > 500
+                    else f"[AI分析] MiniMax 原始返回内容:\n{ai_response}"
+                )
                 return jsonify({"success": True, "data": {"response": ai_response}})
             else:
                 return jsonify(
@@ -594,6 +654,12 @@ def ai_analyze():
             )
 
             if response.text:
+                print(f"[AI分析] Gemini 原始返回结果长度: {len(response.text)} 字符")
+                print(
+                    f"[AI分析] Gemini 原始返回内容:\n{response.text[:500]}..."
+                    if len(response.text) > 500
+                    else f"[AI分析] Gemini 原始返回内容:\n{response.text}"
+                )
                 return jsonify({"success": True, "data": {"response": response.text}})
             else:
                 return jsonify(
@@ -626,6 +692,12 @@ def ai_analyze():
 
             if "choices" in result:
                 ai_response = result["choices"][0]["message"]["content"]
+                print(f"[AI分析] 原始返回结果长度: {len(ai_response)} 字符")
+                print(
+                    f"[AI分析] 原始返回内容:\n{ai_response[:500]}..."
+                    if len(ai_response) > 500
+                    else f"[AI分析] 原始返回内容:\n{ai_response}"
+                )
                 return jsonify({"success": True, "data": {"response": ai_response}})
             else:
                 return jsonify(

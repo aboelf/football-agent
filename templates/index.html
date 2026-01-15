@@ -874,15 +874,14 @@
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">AI 提供商</label>
                                 <select id="ai-provider-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;" onchange="updateModelOptions()">
-                                    <option value="deepseek">DeepSeek</option>
                                     <option value="minimax">MiniMax</option>
-                                    <option value="gemini">Gemini</option>
+                                    <option value="local-gemini">本地 Gemini (兼容OpenAI)</option>
                                 </select>
                             </div>
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">模型选择</label>
                                 <select id="ai-model-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;">
-                                    <option value="deepseek-chat">DeepSeek Chat</option>
+                                    <option value="minimax-m2.1">MiniMax-M2.1</option>
                                 </select>
                             </div>
                             <div style="margin-bottom: 16px;">
@@ -929,12 +928,15 @@
                                         <button class="btn btn-secondary btn-small" onclick="toggleFullPrompt()">
                                             <span id="toggle-prompt-btn">显示完整</span>
                                         </button>
+                                        <button class="btn btn-secondary btn-small" onclick="showFullResult()">
+                                            <span>📄</span> 查看完整分析
+                                        </button>
                                     </div>
                                 </div>
                                 <div id="ai-prompt-preview" style="background: var(--bg-dark); padding: 12px; border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary); max-height: 150px; overflow-y: auto; margin-bottom: 16px; display: none;">
                                 </div>
                             </div>
-                            <div id="ai-result-content" style="background: var(--bg-dark); padding: 16px; border-radius: 8px; font-size: 0.9rem; line-height: 1.8; white-space: pre-wrap; max-height: 500px; overflow-y: auto;">
+                            <div id="ai-result-content" style="background: var(--bg-dark); padding: 16px; border-radius: 8px; font-size: 0.9rem; line-height: 1.8; white-space: pre-wrap; max-height: 600px; overflow-y: auto;">
                             </div>
                         </div>
                     </div>
@@ -975,7 +977,20 @@
             <input type="hidden" id="deleteMatchId">
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeDeleteModal()">取消</button>
-                <button class="btn btn-danger" onclick="deleteAnalysis()">确认删除</button>
+            <button class="btn btn-danger" onclick="deleteAnalysis()">确认删除</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="fullResultModal">
+        <div class="modal" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-title">
+                <span>📄</span> 完整分析结果
+            </div>
+            <div class="modal-content" id="full-result-content" style="flex: 1; overflow-y: auto; max-height: calc(90vh - 140px); background: var(--bg-dark); padding: 16px; border-radius: 8px; font-size: 0.9rem; line-height: 1.8; white-space: pre-wrap;">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeFullResultModal()">关闭</button>
+                <button class="btn btn-primary" onclick="copyFullResult()">复制完整结果</button>
             </div>
         </div>
     </div>
@@ -1100,7 +1115,12 @@
         });
 
         async function performDownload(matchId) {
-            const downloadAnalysis = document.querySelector('#option-analysis input').checked;
+            if (!matchId || typeof matchId !== 'string' || matchId.trim() === '') {
+                showNotification('比赛编号无效', 'error');
+                return;
+            }
+
+            matchId = matchId.trim();
             const downloadOdds = document.querySelector('#option-odds input').checked;
 
             if (!downloadAnalysis && !downloadOdds) {
@@ -1245,6 +1265,11 @@
 
                 await refreshStats();
                 await refreshFiles();
+                await loadAnalysisList(matchId);
+
+                if (downloadAnalysis) {
+                    switchMainTab('analysis');
+                }
 
             } catch (error) {
                 showNotification('下载失败: ' + error.message, 'error');
@@ -1359,13 +1384,25 @@
             window.open(urls[type] || urls['analysis'], '_blank');
         }
 
-        async function loadAnalysisList() {
+        async function loadAnalysisList(scrollToMatchId = null) {
             try {
                 const res = await fetch('/api/analysis/list');
                 const data = await res.json();
 
                 if (data.success && data.data.length > 0) {
                     renderAnalysisList(data.data);
+                    if (scrollToMatchId) {
+                        setTimeout(() => {
+                            const matchCard = document.getElementById(`match-card-${scrollToMatchId}`);
+                            if (matchCard) {
+                                matchCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                matchCard.style.borderColor = 'var(--accent-color)';
+                                setTimeout(() => {
+                                    matchCard.style.borderColor = '';
+                                }, 3000);
+                            }
+                        }, 100);
+                    }
                 }
             } catch (error) {
                 console.error('获取分析数据列表失败:', error);
@@ -1391,13 +1428,14 @@
                     const awayStats = match.away_team_full_stats;
 
                     html += `
-                        <div class="analysis-match-card">
+                        <div class="analysis-match-card" id="match-card-${info.match_id}">
                             <div class="match-header">
                                 <div class="match-teams">
                                     <span onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">${info.home_team}</span>
                                     <span style="color: var(--text-secondary)">vs</span>
                                     <span onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">${info.away_team}</span>
                                 </div>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-card); padding: 4px 8px; border-radius: 4px;">ID: ${info.match_id}</span>
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <div class="match-score">${info.final_score || '未完'}</div>
                                     <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); confirmDeleteAnalysis('${info.match_id}', '${info.home_team} vs ${info.away_team}')">
@@ -1654,6 +1692,7 @@
         let currentMatchIdForOdds = null;
         let currentMatchIdForAI = null;
         let fullPromptText = '';
+        let fullAIResultText = '';
 
         async function loadOddsData() {
             if (!currentMatchIdForOdds) return;
@@ -1965,7 +2004,10 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    document.getElementById('ai-result-content').innerHTML = formatAIResult(data.data.response);
+                    fullAIResultText = data.data.response;
+                    console.log('AI分析结果长度:', fullAIResultText.length);
+                    console.log('AI分析结果:', fullAIResultText);
+                    document.getElementById('ai-result-content').innerHTML = formatAIResult(fullAIResultText);
                 } else {
                     document.getElementById('ai-result-content').innerHTML = '<span style="color: var(--error-color);">分析失败: ' + (data.error || '未知错误') + '</span>';
                 }
@@ -1977,14 +2019,13 @@
         }
 
         const modelOptions = {
-            'deepseek': [
-                { value: 'deepseek-chat', text: 'DeepSeek Chat' }
-            ],
             'minimax': [
                 { value: 'minimax-m2.1', text: 'MiniMax-M2.1' }
             ],
-            'gemini': [
-                { value: 'gemini-3-flash-preview', text: 'Gemini 3.0 Flash (Thinking)' }
+            'local-gemini': [
+                { value: 'gemini-3.0-flash', text: 'Gemini 3.0 Flash' },
+                { value: 'gemini-3.0-pro', text: 'Gemini 3.0 Pro' },
+                { value: 'gemini-3.0-flash-thinking', text: 'Gemini 3.0 Flash (Thinking)' }
             ]
         };
 
@@ -2008,6 +2049,28 @@
                 .replace(/## (.*?)<br>/g, '<h3 style="color: var(--primary-color); margin: 16px 0 8px;">$1</h3>')
                 .replace(/### (.*?)<br>/g, '<h4 style="color: var(--accent-color); margin: 12px 0 6px;">$1</h4>')
                 .replace(/- (.*?)<br>/g, '<li style="margin-left: 20px;">$1</li>');
+        }
+
+        function showFullResult() {
+            if (!fullAIResultText) {
+                showNotification('暂无分析结果', 'warning');
+                return;
+            }
+            document.getElementById('full-result-content').innerHTML = formatAIResult(fullAIResultText);
+            document.getElementById('fullResultModal').classList.add('show');
+        }
+
+        function closeFullResultModal() {
+            document.getElementById('fullResultModal').classList.remove('show');
+        }
+
+        async function copyFullResult() {
+            try {
+                await navigator.clipboard.writeText(fullAIResultText);
+                showNotification('已复制完整结果到剪贴板', 'success');
+            } catch (error) {
+                showNotification('复制失败: ' + error.message, 'error');
+            }
         }
 
         function toggleFullPrompt() {

@@ -30,38 +30,57 @@ class PromptConfig:
 class GameTheoryPromptGenerator:
     """博弈论分析Prompt生成器"""
 
-    SYSTEM_PROMPT = """你是一位精通博弈论（Game Theory）与动态赔率逻辑的足彩战略顾问。你不仅擅长拆解机构的心理陷阱，更能识别出哪些变化是由于"资金对冲需求"，哪些是由于"真实战力倾斜"。
+    SYSTEM_PROMPT = """你是一位精通博弈论（Game Theory）与动态赔率逻辑的顶级战略顾问。你的核心任务是识别机构在盘面上的**"财务对冲"与"真实防御"**。
 
-## 核心分析框架
+第一步：战力离散度与初盘定调（The Power Gap & Initial Tone）
+攻守效率对冲：计算主队主场进球效率与客队客场进球效率的离散度。
 
-### 第一步：战力离散度评估（The Power Gap）
-- 比较双方"主场进攻/客场防守"的真实效率差
-- 预警信号：如果一方近3场进球数 > 2且另一方进球数 < 0.5，此时任何"升水"都必须首选怀疑为"阻盘（阻碍资金流入）"而非"诱多"
+核心准则：若主队主场场均进球 > 1.8 且客队客场场均进球 < 0.8，战力存在严重非对称。
 
-### 第二步：初始定位与赔付压力（Initial Positioning）
-- 初始盘口是否完全贴合战力？（深开、浅开、还是平开？）
-- 初始回报是否处于机构的"舒适防御区"？
+初盘性质判定：
 
-### 第三步：动态博弈假设（Game Theory Hypothesis）
-针对盘口与水位的波动，必须进行"双向验证"：
-- **假设1（诱多策略）**：机构利用题材制造高回报，吸引散户接盘
-- **假设2（阻碍策略）**：机构通过拉高赔率，增加博取难度，利用散户"恐高"心理降低赔付压力
+浅开：基本面全优但让球无力，首选怀疑为"名气诱导"。
 
-### 第四步：交叉逻辑检验（Cross-Verification）
-- **量价背离检查**：如果水位持续拉升但盘口坚挺不动（如半球维持到临场），判断这是否为机构在"高位派发"还是在"关门谢客"
-- **欧亚同步性**：欧赔的主胜拉升是否伴随着平赔的剧烈下调？（若是，则是真实防平；若否，则是诱导资金去下盘）
+深开/硬开：排名接近但强行给到半球（0.5）或以上盘口。此时机构已通过物理门槛（必须赢球才能赢盘）隔离了大部分平局资金。
 
-### 第五步：确定性结论
-- **博弈结论**：谁是真正的利益既得方？
-- **实战建议**：给出首选选项及对应的风险对冲方案
-- **陷阱揭露**：明确指出当前盘面最容易让普通玩家产生的"视觉错觉"
+预警信号：若主队近3场火力全开且客队进攻近乎停滞，任何**"升水"**行为必须优先判定为**"阻盘（阻挡高热方）"**，而非"诱多"。
 
-## 分析要求
+第二步：动态博弈假设（Game Theory Hypothesis）
+假设1（诱导策略/诱下）：机构利用"退盘后的便宜感"或"大幅降水"制造稳当感，吸引资金流向弱势方。
 
-1. **宏观结构分析**：判断初始定位是否足以支撑市场需求平衡
-2. **建立博弈假设**：针对数据的变动（如升盘、降水等），假设机构的意图
-3. **证据推导**：观察后期数据变化，验证假设是否成立
-4. **给出最终倾向**：明确给出谁是"更好的选择"，并指出市场陷阱所在
+假设2（阻碍策略/阻上）：机构维持高门槛盘口（如坚决不退盘），并给予高水位（1.0+）。
+
+博弈心理：利用玩家对"高位水位"的天然恐惧，以及对"平局"的贪婪，强行将资金赶向下盘。
+
+第三步：量价背离与变盘逻辑（Volume-Price Divergence）
+盘口硬度校验（关键修正）：
+
+阻盘（关门谢客）：水位持续拉升至满水，但盘口纹丝不动（例如始终维持在0.5）。结论：机构宁可背负单笔高赔付风险，也不愿降低赢盘难度。
+
+诱多（高位派发）：水位升高的同时伴随降盘（0.5退至0.25）。结论：机构对主胜信心崩塌，试图利用"名气+低门槛"吸引最后的回扣资金。
+
+平赔陷阱识别：若主胜赔率抬升的同时，平赔剧烈下调（如 3.5 -> 3.1）：
+
+若客队缺乏反击能力，此举为**"财务分流"**。机构利用"客队能守住"的心理诱导资金对冲平局，实则保护主胜。
+
+第四步：交叉逻辑检验（Cross-Verification）
+欧亚同步性：观察主胜拉升是否属于全行业行为。若仅是本土机构（如威廉希尔）压低平赔，多为针对当地热度的防御手段。
+
+非对称风险：观察是否存在"升水但不降盘"与"欧赔客胜赔率不动"的背离。若客胜赔率极高且不动，说明机构根本不担心客胜，所有调整均在"主胜"与"平局"之间做戏。
+
+第五步：确定性结论
+博弈结论：谁是真正的利益既得方？（谁在承担风险，谁在享受保护？）
+
+市场陷阱揭露：明确指出当前盘面最容易产生的**"名气错觉"或"排名接近导致的平局陷阱"**。
+
+实战建议：给出首选选项、对应的风险对冲方案及置信度。
+
+分析要求
+宏观结构分析：判断初始定位是否足以支撑市场需求平衡。
+
+证据推导：观察后期数据变化，验证博弈假设是否成立。
+
+最终倾向：明确给出谁是"更好的选择"，并指出市场陷阱所在。
 
 请严格按以上框架进行分析。"""
 
@@ -86,50 +105,36 @@ class GameTheoryPromptGenerator:
         match = re.search(r"[\d.]+", text)
         return float(match.group()) if match else None
 
-    def _convert_handicap_to_decimal(self, handicap: str) -> str:
+    def _convert_handicap_to_readable(self, handicap: str) -> str:
         handicap = handicap.strip()
-        # return handicap
-        mapping = {
-            "半球": "-0.5",
-            "半球/一球": "-0.75",
-            "一球": "-1.0",
-            "一球/球半": "-1.25",
-            "球半": "-1.5",
-            "球半/两球": "-1.75",
-            "两球": "-2.0",
-            "两球/两球半": "-2.25",
-            "两球半": "-2.5",
-            "两球半/三球": "-2.75",
-            "三球": "-3.0",
-            "平手": "0",
-            "平手/半球": "-0.25",
-            "受让平手/半球": "+0.25",
-            "受让半球": "+0.5",
-            "受让半球/一球": "+0.75",
-            "受让一球": "+1.0",
-            "受让一球/球半": "+1.25",
-            "受让球半": "+1.5",
-            "受让球半/两球": "+1.75",
-            "受让两球": "+2.0",
-            "受让两球/两球半": "+2.25",
-            "受让两球半": "+2.5",
-            "受让两球半/三球": "+2.75",
-            "受让三球": "+3.0",
+        if handicap == "平手":
+            return "平手"
+
+        is_received = handicap.startswith("受让")
+        raw_handicap = handicap[2:] if is_received else handicap
+
+        name_map = {
+            "半球": "半球",
+            "半球/一球": "半球/一球",
+            "一球": "一球",
+            "一球/球半": "一球/球半",
+            "球半": "球半",
+            "球半/两球": "球半/两球",
+            "两球": "两球",
+            "两球/两球半": "两球/两球半",
+            "两球半": "两球半",
+            "两球半/三球": "两球半/三球",
+            "三球": "三球",
+            "平手/半球": "平手/半球",
         }
-        if handicap in mapping:
-            return mapping[handicap]
-        if handicap.startswith("受让"):
-            real_handicap = handicap[2:]
-            if real_handicap in mapping:
-                return mapping[real_handicap]
-        if handicap.startswith("客让"):
-            real_handicap = handicap[2:]
-            if real_handicap in mapping:
-                return mapping[real_handicap]
-        if handicap.startswith("主让"):
-            real_handicap = handicap[2:]
-            if real_handicap in mapping:
-                return mapping[real_handicap]
+
+        if raw_handicap in name_map:
+            readable = name_map[raw_handicap]
+            if is_received:
+                return f"主队受让{readable}"
+            else:
+                return f"主队让{readable}"
+
         return handicap
 
     def _load_basic_data(self) -> dict:
@@ -292,36 +297,28 @@ class GameTheoryPromptGenerator:
         if show_details and len(odds_list) > 0:
             lines.append(f"**{name} 亚盘变化** (共{len(odds_list)}条记录)")
             for odds in reversed(odds_list):
-                converted_handicap = self._convert_handicap_to_decimal(odds["handicap"])
+                readable_handicap = self._convert_handicap_to_readable(odds["handicap"])
                 if odds["handicap"] == "平手":
                     handicap_label = ""
                 else:
-                    handicap_label = (
-                        "主队受让"
-                        if odds["handicap"].startswith("受让")
-                        else "主队让球"
-                    )
+                    handicap_label = ""
 
-                handicap_display = f"{converted_handicap} {handicap_label}".strip()
+                handicap_display = f"{readable_handicap} {handicap_label}".strip()
                 lines.append(
                     f"  {odds['home_odds']} | {handicap_display} | {odds['away_odds']} | {odds['time']}"
                 )
         else:
             latest = odds_list[-1] if odds_list else None
             if latest:
-                converted_handicap = self._convert_handicap_to_decimal(
+                readable_handicap = self._convert_handicap_to_readable(
                     latest["handicap"]
                 )
                 if latest["handicap"] == "平手":
                     handicap_label = ""
                 else:
-                    handicap_label = (
-                        "主队受让"
-                        if latest["handicap"].startswith("受让")
-                        else "主队让球"
-                    )
+                    handicap_label = ""
 
-                handicap_display = f"{converted_handicap} {handicap_label}".strip()
+                handicap_display = f"{readable_handicap} {handicap_label}".strip()
                 lines.append(
                     f"**{name}**: {latest['home_odds']} | {handicap_display} | {latest['away_odds']}"
                 )
@@ -392,7 +389,7 @@ class GameTheoryPromptGenerator:
 
         converted_handicaps = []
         for o in latest_odds:
-            converted = self._convert_handicap_to_decimal(o["handicap"])
+            converted = self._convert_handicap_to_readable(o["handicap"])
             converted_handicaps.append((o["name"], converted))
         unique_handicaps = list(set(h[1] for h in converted_handicaps))
         if len(unique_handicaps) > 1:
@@ -582,7 +579,7 @@ class GameTheoryPromptGenerator:
             for data in handicap_data:
                 if data.get("odds"):
                     latest = data["odds"][-1]
-                    converted = self._convert_handicap_to_decimal(latest["handicap"])
+                    converted = self._convert_handicap_to_readable(latest["handicap"])
                     handicaps.append(converted)
             if handicaps:
                 from collections import Counter
