@@ -33,7 +33,7 @@ def save_ai_result(match_id, model, ai_response):
 
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         safe_model_name = model.replace("/", "_").replace(":", "_")
-        filename = f"{match_id}_{safe_model_name}_{timestamp}.md"
+        filename = f"{timestamp}_{match_id}_{safe_model_name}.md"
         filepath = results_dir / filename
 
         with open(filepath, "w", encoding="utf-8") as f:

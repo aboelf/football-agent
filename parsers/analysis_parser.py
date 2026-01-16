@@ -567,8 +567,10 @@ def extract_match_info(html: str) -> MatchBasicInfo:
     )
 
 
-def process_all_analyses(data_dir: str = "./data/analysis") -> List[Dict]:
-    basic_data_list = []
+def process_all_analyses(
+    data_dir: str = "./data/analysis", output_file: str = "./data/basic_data.json"
+) -> List[Dict]:
+    basic_data_dict = {}
 
     data_path = Path(data_dir)
     html_files = list(data_path.glob("*.html"))
@@ -577,12 +579,21 @@ def process_all_analyses(data_dir: str = "./data/analysis") -> List[Dict]:
         print(f"Processing: {html_file.name}")
         try:
             basic_data = parse_html_basic_data(str(html_file))
-            basic_data_list.append(asdict(basic_data))
+            match_id = basic_data.match_info.match_id
+            if match_id:
+                basic_data_dict[match_id] = asdict(basic_data)
+                print(f"  -> Match {match_id} added/updated")
+            else:
+                print(f"  -> Warning: No match_id found in {html_file.name}")
         except Exception as e:
             print(f"Error processing {html_file.name}: {e}")
             import traceback
 
             traceback.print_exc()
+
+    basic_data_list = list(basic_data_dict.values())
+
+    save_basic_data(basic_data_list, output_file)
 
     return basic_data_list
 
