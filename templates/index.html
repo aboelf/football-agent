@@ -414,6 +414,23 @@
             border-radius: 3px;
         }
 
+        #ai-analysis-content::-webkit-scrollbar,
+        #ai-result-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #ai-analysis-content::-webkit-scrollbar-track,
+        #ai-result-content::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+            border-radius: 3px;
+        }
+
+        #ai-analysis-content::-webkit-scrollbar-thumb,
+        #ai-result-content::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
         .file-item {
             display: flex;
             align-items: center;
@@ -788,6 +805,11 @@
                                     <div class="option-icon">📈</div>
                                     <div class="option-label">赔率数据</div>
                                 </label>
+                                <label class="option-card active" id="option-overunder">
+                                    <input type="checkbox" checked data-type="overunder">
+                                    <div class="option-icon">⚽</div>
+                                    <div class="option-label">大小球</div>
+                                </label>
                             </div>
 
                             <div class="progress-container" id="progressContainer">
@@ -869,7 +891,7 @@
                         </button>
                     </div>
 
-                    <div id="ai-analysis-content">
+                    <div id="ai-analysis-content" style="max-height: calc(100vh - 200px); overflow-y: auto;">
                         <div class="ai-section" id="ai-prompt-section">
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">AI 提供商</label>
@@ -1104,17 +1126,33 @@
         }
 
         document.getElementById('confirmReDownload').addEventListener('click', async function() {
-            if (pendingMatchId) {
-                closeModal();
-                showNotification('正在删除旧数据...', 'warning');
-                
-                try {
-                    await fetch(`/api/delete/${pendingMatchId}`, { method: 'POST' });
+            if (!pendingMatchId) {
+                showNotification('无效的比赛编号', 'error');
+                return;
+            }
+
+            closeModal();
+            showNotification('正在删除旧数据...', 'warning');
+
+            try {
+                const deleteRes = await fetch(`/api/delete/${pendingMatchId}`, { method: 'POST' });
+                const deleteData = await deleteRes.json();
+
+                if (deleteData.success) {
+                    showNotification('旧数据已删除', 'success');
+
+                    document.getElementById('matchId').dataset.hasExisting = 'false';
+                    document.getElementById('matchId').style.borderColor = '';
+
                     await refreshFiles();
+                    await new Promise(r => setTimeout(r, 500));
+
                     performDownload(pendingMatchId);
-                } catch (error) {
-                    showNotification('删除旧数据失败', 'error');
+                } else {
+                    showNotification('删除旧数据失败: ' + (deleteData.error || '未知错误'), 'error');
                 }
+            } catch (error) {
+                showNotification('删除旧数据失败: ' + error.message, 'error');
             }
         });
 
@@ -1127,8 +1165,9 @@
             matchId = matchId.trim();
             const downloadAnalysis = document.querySelector('#option-analysis input').checked;
             const downloadOdds = document.querySelector('#option-odds input').checked;
+            const downloadOverunder = document.querySelector('#option-overunder input').checked;
 
-            if (!downloadAnalysis && !downloadOdds) {
+            if (!downloadAnalysis && !downloadOdds && !downloadOverunder) {
                 showNotification('请至少选择一种数据类型', 'error');
                 return;
             }
@@ -1152,9 +1191,134 @@
             progressFill.style.transition = 'width 0.5s ease';
 
             try {
-                if (downloadAnalysis && downloadOdds) {
+                if (downloadAnalysis && downloadOdds && downloadOverunder) {
+                    progressStatus.textContent = '正在打开浏览器...';
+                    progressFill.style.width = '15%';
+
+                    const analysisRes = await fetch('/api/download/analysis', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    progressStatus.textContent = '分析数据下载中...';
+                    progressFill.style.width = '35%';
+
+                    const analysisData = await analysisRes.json();
+
+                    if (analysisData.success) {
+                        showNotification('分析数据下载成功', 'success');
+                    } else {
+                        showNotification(`分析数据下载失败: ${analysisData.error}`, 'error');
+                    }
+
+                    progressStatus.textContent = '赔率数据下载中...';
+                    progressFill.style.width = '55%';
+
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const handicapRes = await fetch('/api/download/odds/handicap', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const oddsRes = await fetch('/api/download/odds/odds', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    progressStatus.textContent = '大小球数据下载中...';
+                    progressFill.style.width = '75%';
+
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const overunderRes = await fetch('/api/download/overunder/all', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    const handicapData = await handicapRes.json();
+                    const oddsData = await oddsRes.json();
+                    const overunderData = await overunderRes.json();
+
+                    const oddsSuccess = handicapData.success || oddsData.success;
+                    if (oddsSuccess) {
+                        showNotification('赔率数据下载成功', 'success');
+                    } else {
+                        const errorMsg = (!handicapData.success ? `亚盘: ${handicapData.error}; ` : '') +
+                                        (!oddsData.success ? `欧赔: ${oddsData.error}` : '');
+                        showNotification(`赔率数据下载失败: ${errorMsg}`, 'error');
+                    }
+
+                    if (overunderData.success) {
+                        showNotification('大小球数据下载成功', 'success');
+                    } else {
+                        showNotification(`大小球数据下载失败: ${overunderData.error}`, 'error');
+                    }
+
+                    progressFill.style.width = '100%';
+
+                } else if (downloadAnalysis && downloadOdds) {
                     progressStatus.textContent = '正在打开浏览器...';
                     progressFill.style.width = '20%';
+
+                    const analysisRes = await fetch('/api/download/analysis', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    progressStatus.textContent = '分析数据下载中...';
+                    progressFill.style.width = '45%';
+
+                    const analysisData = await analysisRes.json();
+
+                    if (analysisData.success) {
+                        showNotification('分析数据下载成功', 'success');
+                    } else {
+                        showNotification(`分析数据下载失败: ${analysisData.error}`, 'error');
+                    }
+
+                    progressStatus.textContent = '赔率数据下载中...';
+                    progressFill.style.width = '70%';
+
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const handicapRes = await fetch('/api/download/odds/handicap', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const oddsRes = await fetch('/api/download/odds/odds', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    const handicapData = await handicapRes.json();
+                    const oddsData = await oddsRes.json();
+
+                    if (handicapData.success || oddsData.success) {
+                        showNotification('赔率数据下载成功', 'success');
+                    } else {
+                        const errorMsg = (!handicapData.success ? `亚盘: ${handicapData.error}; ` : '') +
+                                        (!oddsData.success ? `欧赔: ${oddsData.error}` : '');
+                        showNotification(`赔率数据下载失败: ${errorMsg}`, 'error');
+                    }
+
+                    progressFill.style.width = '100%';
+
+                } else if (downloadAnalysis && downloadOverunder) {
+                    progressStatus.textContent = '正在打开浏览器...';
+                    progressFill.style.width = '30%';
 
                     const analysisRes = await fetch('/api/download/analysis', {
                         method: 'POST',
@@ -1173,22 +1337,54 @@
                         showNotification(`分析数据下载失败: ${analysisData.error}`, 'error');
                     }
 
-                    progressStatus.textContent = '赔率数据下载中...';
+                    progressStatus.textContent = '大小球数据下载中...';
                     progressFill.style.width = '80%';
 
                     await new Promise(r => setTimeout(r, 500));
 
-                    // 下载亚盘
+                    const overunderRes = await fetch('/api/download/overunder/all', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    const overunderData = await overunderRes.json();
+
+                    if (overunderData.success) {
+                        showNotification('大小球数据下载成功', 'success');
+                    } else {
+                        showNotification(`大小球数据下载失败: ${overunderData.error}`, 'error');
+                    }
+
+                    progressFill.style.width = '100%';
+
+                } else if (downloadOdds && downloadOverunder) {
+                    progressStatus.textContent = '亚盘下载中...';
+                    progressFill.style.width = '25%';
+
                     const handicapRes = await fetch('/api/download/odds/handicap', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ match_id: matchId })
                     });
 
+                    progressFill.style.width = '50%';
+                    progressStatus.textContent = '欧赔下载中...';
+
                     await new Promise(r => setTimeout(r, 500));
 
-                    // 下载欧赔
                     const oddsRes = await fetch('/api/download/odds/odds', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    progressStatus.textContent = '大小球下载中...';
+                    progressFill.style.width = '75%';
+
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const overunderRes = await fetch('/api/download/overunder/all', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ match_id: matchId })
@@ -1196,14 +1392,24 @@
 
                     const handicapData = await handicapRes.json();
                     const oddsData = await oddsRes.json();
+                    const overunderData = await overunderRes.json();
 
-                    if (handicapData.success || oddsData.success) {
+                    const oddsSuccess = handicapData.success || oddsData.success;
+                    if (oddsSuccess) {
                         showNotification('赔率数据下载成功', 'success');
                     } else {
                         const errorMsg = (!handicapData.success ? `亚盘: ${handicapData.error}; ` : '') +
                                         (!oddsData.success ? `欧赔: ${oddsData.error}` : '');
                         showNotification(`赔率数据下载失败: ${errorMsg}`, 'error');
                     }
+
+                    if (overunderData.success) {
+                        showNotification('大小球数据下载成功', 'success');
+                    } else {
+                        showNotification(`大小球数据下载失败: ${overunderData.error}`, 'error');
+                    }
+
+                    progressFill.style.width = '100%';
 
                 } else if (downloadAnalysis) {
                     progressStatus.textContent = '正在打开浏览器...';
@@ -1223,6 +1429,8 @@
                     } else {
                         showNotification(`分析数据下载失败: ${data.error}`, 'error');
                     }
+
+                    progressFill.style.width = '100%';
 
                 } else if (downloadOdds) {
                     progressStatus.textContent = '亚盘下载中...';
@@ -1255,9 +1463,32 @@
                                         (!oddsData.success ? `欧赔: ${oddsData.error}` : '');
                         showNotification(`赔率数据下载失败: ${errorMsg}`, 'error');
                     }
+
+                    progressFill.style.width = '100%';
+
+                } else if (downloadOverunder) {
+                    progressStatus.textContent = '大小球数据下载中...';
+                    progressFill.style.width = '50%';
+
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const overunderRes = await fetch('/api/download/overunder/all', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_id: matchId })
+                    });
+
+                    const overunderData = await overunderRes.json();
+
+                    if (overunderData.success) {
+                        showNotification('大小球数据下载成功', 'success');
+                    } else {
+                        showNotification(`大小球数据下载失败: ${overunderData.error}`, 'error');
+                    }
+
+                    progressFill.style.width = '100%';
                 }
 
-                progressFill.style.width = '100%';
                 progressPercent.textContent = '100%';
                 progressStatus.textContent = '下载完成!';
 
@@ -1687,9 +1918,14 @@
                 ` : ''}
 
                 <div class="detail-section">
-                    <button class="btn btn-primary" style="width: 100%;" onclick="showAIAnalysis('${info.match_id}')">
-                        <span>🤖</span> AI 博弈论分析
-                    </button>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn btn-secondary" style="flex: 1;" onclick="showOddsForMatch('${info.match_id}')">
+                            <span>📊</span> 赔率数据
+                        </button>
+                        <button class="btn btn-primary" style="flex: 1;" onclick="showAIAnalysis('${info.match_id}')">
+                            <span>🤖</span> AI 博弈论分析
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -1704,6 +1940,10 @@
         let currentMatchIdForAI = null;
         let fullPromptText = '';
         let fullAIResultText = '';
+        let currentAIResultData = null;
+        let conversationMessages = [];
+        let currentAIProvider = 'local-gemini';
+        let currentAIModel = 'gemini-3.0-flash';
 
         async function loadOddsData() {
             if (!currentMatchIdForOdds) return;
@@ -1929,6 +2169,12 @@
             document.getElementById('ai-result-section').style.display = 'none';
             document.getElementById('ai-prompt-preview').style.display = 'none';
             document.getElementById('toggle-prompt-btn').textContent = '显示完整';
+            conversationMessages = [];
+
+            const conversationUI = document.getElementById('conversation-ui');
+            if (conversationUI) {
+                conversationUI.style.display = 'none';
+            }
         }
 
         function showAIAnalysis(matchId) {
@@ -1937,6 +2183,81 @@
             document.getElementById('ai-analysis-card').style.display = 'block';
 
             resetAIAnalysis();
+            checkExistingAIResults(matchId);
+        }
+
+        async function checkExistingAIResults(matchId) {
+            try {
+                const res = await fetch(`/api/ai/results/${matchId}`);
+                const data = await res.json();
+
+                if (data.success && data.data && data.data.length > 0) {
+                    const latestResult = data.data[0];
+                    currentAIResultData = latestResult;
+
+                    document.getElementById('ai-prompt-section').style.display = 'none';
+                    document.getElementById('ai-loading-section').style.display = 'none';
+                    document.getElementById('ai-result-section').style.display = 'block';
+
+                    document.getElementById('ai-result-time').textContent = latestResult.time + ' (已有分析结果)';
+
+                    fetchFullAIResult(latestResult.filename, matchId);
+
+                    const resultSection = document.getElementById('ai-result-section');
+                    const existingBtn = resultSection.querySelector('.btn-reanalyze');
+                    if (!existingBtn) {
+                        const analyzeBtn = document.createElement('button');
+                        analyzeBtn.className = 'btn btn-primary btn-reanalyze';
+                        analyzeBtn.style.marginTop = '16px';
+                        analyzeBtn.style.width = '100%';
+                        analyzeBtn.innerHTML = '<span>🔄</span> 重新分析';
+                        analyzeBtn.onclick = function() {
+                            currentAIResultData = null;
+                            conversationMessages = [];
+                            resetAIAnalysis();
+                        };
+                        resultSection.appendChild(analyzeBtn);
+
+                        const continueBtn = document.createElement('button');
+                        continueBtn.className = 'btn btn-secondary';
+                        continueBtn.style.marginTop = '8px';
+                        continueBtn.style.width = '100%';
+                        continueBtn.innerHTML = '<span>💬</span> 继续对话';
+                        continueBtn.onclick = function() {
+                            showConversationUI();
+                        };
+                        resultSection.appendChild(continueBtn);
+                    }
+                } else {
+                    currentAIResultData = null;
+                    conversationMessages = [];
+                    resetAIAnalysis();
+                }
+            } catch (error) {
+                console.error('检查AI分析结果失败:', error);
+                resetAIAnalysis();
+            }
+        }
+
+        async function fetchFullAIResult(filename, matchId) {
+            try {
+                const res = await fetch(`/api/ai/results/${matchId}/${filename}`);
+                const data = await res.json();
+
+                if (data.success && data.data && data.data.content) {
+                    fullAIResultText = data.data.content;
+                    document.getElementById('ai-result-content').innerHTML = formatAIResult(fullAIResultText);
+
+                    const promptRes = await fetch(`/api/ai/prompts/${matchId}`);
+                    const promptData = await promptRes.json();
+                    if (promptData.success && promptData.data && promptData.data.content) {
+                        fullPromptText = promptData.data.content;
+                        document.getElementById('ai-prompt-preview').textContent = fullPromptText.substring(0, 500) + '...';
+                    }
+                }
+            } catch (error) {
+                console.error('获取完整AI结果失败:', error);
+            }
         }
 
         async function generateAndAnalyze() {
@@ -1948,6 +2269,9 @@
             const bookmaker = document.getElementById('ai-bookmaker-select').value;
             const includeH2H = document.getElementById('ai-include-h2h').checked;
             const includeTable = document.getElementById('ai-include-table').checked;
+
+            currentAIProvider = document.getElementById('ai-provider-select').value;
+            currentAIModel = document.getElementById('ai-model-select').value;
 
             document.getElementById('ai-prompt-section').style.display = 'none';
             document.getElementById('ai-loading-section').style.display = 'block';
@@ -1997,8 +2321,6 @@
         }
 
         async function callAIAnalysis(promptText, matchId) {
-            const provider = document.getElementById('ai-provider-select').value;
-            const model = document.getElementById('ai-model-select').value;
             const finalMatchId = matchId || currentMatchIdForAI || 'unknown';
             console.log('[AI分析] matchId参数:', matchId, 'currentMatchIdForAI:', currentMatchIdForAI, '最终matchId:', finalMatchId);
 
@@ -2008,9 +2330,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt: promptText,
-                        provider: provider,
-                        model: model,
-                        match_id: finalMatchId
+                        provider: currentAIProvider,
+                        model: currentAIModel,
+                        match_id: finalMatchId,
+                        messages: conversationMessages
                     })
                 });
 
@@ -2024,6 +2347,10 @@
                     console.log('AI分析结果长度:', fullAIResultText.length);
                     console.log('AI分析结果:', fullAIResultText);
                     document.getElementById('ai-result-content').innerHTML = formatAIResult(fullAIResultText);
+
+                    conversationMessages.push({ role: 'user', content: promptText });
+                    conversationMessages.push({ role: 'assistant', content: fullAIResultText });
+                    console.log('对话历史已更新，当前消息数:', conversationMessages.length);
                 } else {
                     document.getElementById('ai-result-content').innerHTML = '<span style="color: var(--error-color);">分析失败: ' + (data.error || '未知错误') + '</span>';
                 }
@@ -2086,6 +2413,113 @@
                 showNotification('已复制完整结果到剪贴板', 'success');
             } catch (error) {
                 showNotification('复制失败: ' + error.message, 'error');
+            }
+        }
+
+        function showConversationUI() {
+            const aiAnalysisContent = document.getElementById('ai-analysis-content');
+
+            let conversationUI = document.getElementById('conversation-ui');
+            if (!conversationUI) {
+                conversationUI = document.createElement('div');
+                conversationUI.id = 'conversation-ui';
+                conversationUI.className = 'conversation-section';
+                conversationUI.style.marginTop = '24px';
+                conversationUI.style.borderTop = '1px solid var(--border-color)';
+                conversationUI.style.paddingTop = '16px';
+                conversationUI.innerHTML = `
+                    <h4 style="color: var(--accent-color); font-size: 0.95rem; margin-bottom: 12px;">💬 继续对话</h4>
+                    <div id="conversation-history" style="max-height: 200px; overflow-y: auto; background: var(--bg-dark); border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 0.85rem; line-height: 1.6;">
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="conversation-input" placeholder="输入您的问题..." style="flex: 1; padding: 10px 14px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem;" onkeypress="if(event.key==='Enter') sendConversationMessage()">
+                        <button class="btn btn-primary" onclick="sendConversationMessage()">
+                            <span>发送</span>
+                        </button>
+                    </div>
+                    <div id="conversation-loading" style="display: none; margin-top: 12px; text-align: center; color: var(--text-secondary);">
+                        <div class="spinner" style="width: 20px; height: 20px; margin: 0 auto;"></div>
+                        <p style="font-size: 0.85rem; margin-top: 8px;">AI 思考中...</p>
+                    </div>
+                `;
+                aiAnalysisContent.appendChild(conversationUI);
+            }
+
+            conversationUI.style.display = 'block';
+            document.getElementById('conversation-input').focus();
+            renderConversationHistory();
+        }
+
+        function renderConversationHistory() {
+            const historyContainer = document.getElementById('conversation-history');
+            if (!historyContainer) return;
+
+            let html = '';
+            for (const msg of conversationMessages) {
+                const isUser = msg.role === 'user';
+                const roleLabel = isUser ? '你' : 'AI';
+                const roleColor = isUser ? 'var(--primary-color)' : 'var(--accent-color)';
+                const content = msg.content.length > 200 ? msg.content.substring(0, 200) + '...' : msg.content;
+                html += `<div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span style="color: ${roleColor}; font-weight: 500;">${roleLabel}:</span>
+                    <span style="color: var(--text-primary); margin-left: 8px;">${content}</span>
+                </div>`;
+            }
+
+            if (conversationMessages.length === 0) {
+                html = '<div style="color: var(--text-secondary); text-align: center;">暂无对话历史，开始对话吧！</div>';
+            }
+
+            historyContainer.innerHTML = html;
+            historyContainer.scrollTop = historyContainer.scrollHeight;
+        }
+
+        async function sendConversationMessage() {
+            const input = document.getElementById('conversation-input');
+            const message = input.value.trim();
+            if (!message) {
+                showNotification('请输入内容', 'warning');
+                return;
+            }
+
+            document.getElementById('conversation-loading').style.display = 'block';
+            input.disabled = true;
+
+            try {
+                const res = await fetch('/api/ai/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: message,
+                        provider: currentAIProvider,
+                        model: currentAIModel,
+                        match_id: currentMatchIdForAI || 'unknown',
+                        messages: conversationMessages
+                    })
+                });
+
+                document.getElementById('conversation-loading').style.display = 'none';
+                input.disabled = false;
+
+                const data = await res.json();
+
+                if (data.success) {
+                    input.value = '';
+                    fullAIResultText = data.data.response;
+                    document.getElementById('ai-result-content').innerHTML = formatAIResult(fullAIResultText);
+
+                    conversationMessages.push({ role: 'user', content: message });
+                    conversationMessages.push({ role: 'assistant', content: fullAIResultText });
+
+                    renderConversationHistory();
+                    showNotification('AI 已回复', 'success');
+                } else {
+                    showNotification('AI 回复失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                document.getElementById('conversation-loading').style.display = 'none';
+                input.disabled = false;
+                showNotification('发送失败: ' + error.message, 'error');
             }
         }
 

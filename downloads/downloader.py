@@ -96,6 +96,12 @@ class DataDownloader:
         os.makedirs(f"{base_path}/odds/odds", exist_ok=True)
         os.makedirs(f"{base_path}/odds/overunder", exist_ok=True)
 
+    def _ensure_dir(self, path: str) -> None:
+        """确保目录存在，不存在则自动创建"""
+        directory = os.path.dirname(path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+
     def get_odds_company_ids(self, match_id: str) -> Dict[int, Dict]:
         """
         从oddslist页面获取欧赔庄家的id参数
@@ -230,6 +236,7 @@ class DataDownloader:
                 # 保存原始HTML
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{self.base_path}/analysis/{match_id}_{timestamp}.html"
+                self._ensure_dir(filename)
 
                 with open(filename, "w", encoding="utf-8") as f:
                     f.write(html_content)
@@ -247,6 +254,8 @@ class DataDownloader:
 
                 # 保存JSON元数据
                 meta_file = f"{self.base_path}/analysis/{match_id}_{timestamp}.json"
+                self._ensure_dir(meta_file)
+
                 with open(meta_file, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -274,6 +283,7 @@ class DataDownloader:
             if response.status_code == 200:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{self.base_path}/analysis/{match_id}_{timestamp}.html"
+                self._ensure_dir(filename)
 
                 with open(filename, "w", encoding="utf-8") as f:
                     f.write(response.text)
@@ -290,6 +300,8 @@ class DataDownloader:
                 }
 
                 meta_file = f"{self.base_path}/analysis/{match_id}_{timestamp}.json"
+                self._ensure_dir(meta_file)
+
                 with open(meta_file, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -361,6 +373,7 @@ class DataDownloader:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     subdir = self._get_odds_subdir(odds_type)
                     filename = f"{self.base_path}/odds/{subdir}/{match_id}_{bm.value}_{timestamp}.html"
+                    self._ensure_dir(filename)
 
                     with open(filename, "w", encoding="utf-8") as f:
                         f.write(html_content)
@@ -381,6 +394,8 @@ class DataDownloader:
                     }
 
                     meta_file = f"{self.base_path}/odds/{subdir}/{match_id}_{bm.value}_{timestamp}.json"
+                    self._ensure_dir(meta_file)
+
                     with open(meta_file, "w", encoding="utf-8") as f:
                         json.dump(result, f, ensure_ascii=False, indent=2)
 
@@ -443,6 +458,7 @@ class DataDownloader:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 subdir = self._get_odds_subdir(odds_type)
                 filename = f"{self.base_path}/odds/{subdir}/{match_id}_{bookmaker.value}_{timestamp}.html"
+                self._ensure_dir(filename)
 
                 with open(filename, "w", encoding="utf-8") as f:
                     f.write(response.text)
@@ -463,6 +479,8 @@ class DataDownloader:
                 }
 
                 meta_file = f"{self.base_path}/odds/{subdir}/{match_id}_{bookmaker.value}_{timestamp}.json"
+                self._ensure_dir(meta_file)
+
                 with open(meta_file, "w", encoding="utf-8") as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
 
@@ -530,6 +548,166 @@ class DataDownloader:
             results[bookmaker.value] = result
             time.sleep(1)
         return results
+
+    def download_all_overunder_data(
+        self, match_id: str, use_browser: bool = True
+    ) -> Dict:
+        """下载大小球所有庄家数据 (Macau/Bet365/EasyBet) 到 data/odds/overunder/ 目录"""
+        overunder_companies = [
+            (1, "macau"),
+            (8, "bet365"),
+            (12, "easybet"),
+        ]
+
+        results = {}
+        for company_id, bookmaker_name in overunder_companies:
+            result = self.download_overunder_to_data_overunder(
+                match_id,
+                company_id=company_id,
+                bookmaker_name=bookmaker_name,
+                use_browser=use_browser,
+            )
+            results[bookmaker_name] = result
+            time.sleep(1)
+
+        return results
+
+    def download_overunder_to_data_overunder(
+        self,
+        match_id: str,
+        company_id: int = 1,
+        bookmaker_name: str = "macau",
+        use_browser: bool = True,
+    ) -> Dict:
+        """下载大小球数据到 data/odds/overunder/ 目录"""
+        url = f"https://vip.titan007.com/changeDetail/overunder.aspx?id={match_id}&companyID={company_id}&l=0"
+
+        try:
+            print(f"正在下载大小球数据 [{bookmaker_name}]: {url}")
+
+            if use_browser:
+                from playwright.sync_api import sync_playwright
+
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(headless=True)
+                    page = browser.new_page()
+                    page.goto(url, wait_until="networkidle")
+                    page.wait_for_timeout(3000)
+                    html_content = page.content()
+                    browser.close()
+            else:
+                response = self.session.get(url, timeout=30)
+                response.encoding = "utf-8"
+                html_content = response.text
+
+            if html_content:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{self.base_path}/odds/overunder/{match_id}_{bookmaker_name}_{timestamp}.html"
+                self._ensure_dir(filename)
+
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+
+                result = {
+                    "match_id": match_id,
+                    "company_id": company_id,
+                    "bookmaker": bookmaker_name,
+                    "url": url,
+                    "download_time": timestamp,
+                    "raw_file": filename,
+                    "status": "success",
+                    "content_length": len(html_content),
+                    "use_browser": use_browser,
+                }
+
+                meta_file = f"{self.base_path}/odds/overunder/{match_id}_{bookmaker_name}_{timestamp}.json"
+                self._ensure_dir(meta_file)
+
+                with open(meta_file, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+
+                print(f"✓ 大小球数据 [{bookmaker_name}] 下载成功: {filename}")
+                return result
+            else:
+                return {
+                    "match_id": match_id,
+                    "company_id": company_id,
+                    "bookmaker": bookmaker_name,
+                    "url": url,
+                    "status": "failed",
+                    "error": "No content retrieved",
+                }
+
+        except ImportError:
+            print("⚠ Playwright 未安装，使用 requests 降级获取")
+            return self._download_overunder_requests(
+                match_id, company_id, bookmaker_name
+            )
+        except Exception as e:
+            print(f"✗ 下载大小球数据出错: {str(e)}")
+            return {
+                "match_id": match_id,
+                "company_id": company_id,
+                "url": url,
+                "status": "failed",
+                "error": str(e),
+            }
+
+    def _download_overunder_requests(
+        self, match_id: str, company_id: int, bookmaker_name: str = "macau"
+    ) -> Dict:
+        """使用 requests 降级获取大小球数据"""
+        url = f"https://vip.titan007.com/changeDetail/overunder.aspx?id={match_id}&companyID={company_id}&l=0"
+
+        try:
+            response = self.session.get(url, timeout=30)
+            response.encoding = "utf-8"
+
+            if response.status_code == 200:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{self.base_path}/odds/overunder/{match_id}_{bookmaker_name}_{timestamp}.html"
+                self._ensure_dir(filename)
+
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write(response.text)
+
+                result = {
+                    "match_id": match_id,
+                    "company_id": company_id,
+                    "bookmaker": bookmaker_name,
+                    "url": url,
+                    "download_time": timestamp,
+                    "raw_file": filename,
+                    "status": "success",
+                    "content_length": len(response.text),
+                    "use_browser": False,
+                }
+
+                meta_file = f"{self.base_path}/odds/overunder/{match_id}_{bookmaker_name}_{timestamp}.json"
+                self._ensure_dir(meta_file)
+
+                with open(meta_file, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+
+                print(f"✓ 大小球数据 [{bookmaker_name}] 下载成功 (静态): {filename}")
+                return result
+            else:
+                return {
+                    "match_id": match_id,
+                    "company_id": company_id,
+                    "bookmaker": bookmaker_name,
+                    "url": url,
+                    "status": "failed",
+                    "error": f"HTTP {response.status_code}",
+                }
+        except Exception as e:
+            return {
+                "match_id": match_id,
+                "company_id": company_id,
+                "url": url,
+                "status": "failed",
+                "error": str(e),
+            }
 
     def download_both(self, match_id: str, use_browser: bool = True) -> Dict:
         """同时下载分析数据和亚盘赔率(默认下载所有庄家)"""

@@ -280,6 +280,56 @@ def download_overunder_all():
         return jsonify({"success": False, "error": str(e)})
 
 
+@app.route("/api/download/overunder/all", methods=["POST"])
+def download_overunder_all_data():
+    """下载大小球所有庄家数据 (Macau/Bet365/EasyBet)"""
+    data = request.get_json()
+
+    if not data or "match_id" not in data:
+        return jsonify({"success": False, "error": "缺少比赛编号"})
+
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    try:
+        result = downloader.download_all_overunder_data(match_id)
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/download/overunder", methods=["POST"])
+def download_overunder_data():
+    """下载大小球数据到 data/odds/overunder/ 目录"""
+    data = request.get_json()
+
+    if not data or "match_id" not in data:
+        return jsonify({"success": False, "error": "缺少比赛编号"})
+
+    match_id = data.get("match_id")
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    match_id = str(match_id).strip()
+    if not match_id:
+        return jsonify({"success": False, "error": "比赛编号不能为空"})
+
+    company_id = data.get("company_id", 1)
+
+    try:
+        result = downloader.download_overunder_to_data_overunder(
+            match_id, company_id=company_id
+        )
+        return jsonify({"success": result.get("status") == "success", "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
 @app.route("/api/download/odds/all", methods=["POST"])
 def download_all_odds():
     """下载所有类型赔率数据"""
@@ -388,6 +438,12 @@ def view_odds_odds_file(filename):
 @app.route("/api/files/odds/overunder/<filename>")
 def view_overunder_file(filename):
     """查看大小球赔率文件内容"""
+    return send_from_directory("./data/odds/overunder", filename)
+
+
+@app.route("/api/files/overunder/<filename>")
+def view_overunder_data_file(filename):
+    """查看data/odds/overunder目录的大小球文件内容"""
     return send_from_directory("./data/odds/overunder", filename)
 
 
@@ -624,12 +680,13 @@ def ai_analyze():
         provider = data.get("provider", "deepseek")
         model = data.get("model", "deepseek-chat")
         match_id = data.get("match_id", "unknown")
+        messages = data.get("messages", [])  # 支持多轮对话消息历史
 
         print(
-            f"[AI分析] 收到请求: match_id={match_id}, model={model}, provider={provider}"
+            f"[AI分析] 收到请求: match_id={match_id}, model={model}, provider={provider}, messages_count={len(messages)}"
         )
 
-        if not prompt:
+        if not prompt and not messages:
             return jsonify({"success": False, "error": "缺少分析内容"})
 
         if provider not in AI_PROVIDERS:
@@ -655,6 +712,7 @@ def ai_analyze():
         client = httpx.Client(timeout=300.0)
 
         if provider == "minimax":
+            # MiniMax implementation remains single-turn for now
             response = client.post(
                 model_config["endpoint"],
                 headers={
@@ -694,9 +752,11 @@ def ai_analyze():
                         ai_response += block.get("text", "")
                     elif block.get("type") == "thinking":
                         ai_response += (
-                            f"\n[思考过程]\n{block.get('thinking', '')}\n[/思考过程]\n"
+                            f"\n\n[思考过程]\n{block.get('thinking', '')}"
+                            if block.get("thinking")
+                            else ""
                         )
-                print(f"[AI分析] MiniMax 原始返回结果长度: {len(ai_response)} 字符")
+
                 print(
                     f"[AI分析] MiniMax 原始返回内容:\n{ai_response[:500]}..."
                     if len(ai_response) > 500
@@ -711,44 +771,30 @@ def ai_analyze():
                         "error": "AI返回格式未知",
                     }
                 )
-
-        elif provider == "gemini":
-            from google import genai
-
-            client_gemini = genai.Client(api_key=api_key)
-
-            full_content = f"{system_prompt}\n\n{prompt}"
-
-            response = client_gemini.models.generate_content(
-                model=model,
-                contents=full_content,
-                config={
-                    "temperature": model_config["temperature"],
-                    "max_output_tokens": model_config["max_tokens"],
-                    "thinking_config": {"type": "thinking"}
-                    if model_config.get("thinking")
-                    else None,
-                },
-            )
-
-            if response.text:
-                print(f"[AI分析] Gemini 原始返回结果长度: {len(response.text)} 字符")
-                print(
-                    f"[AI分析] Gemini 原始返回内容:\n{response.text[:500]}..."
-                    if len(response.text) > 500
-                    else f"[AI分析] Gemini 原始返回内容:\n{response.text}"
-                )
-                save_ai_result(match_id, model, response.text)
-                return jsonify({"success": True, "data": {"response": response.text}})
-            else:
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": "AI调用失败，未返回内容",
-                    }
-                )
-
         else:
+            # OpenAI-compatible API (local-gemini) - 支持多轮对话
+            request_messages = []
+
+            # 添加系统提示
+            request_messages.append({"role": "system", "content": system_prompt})
+
+            # 如果有历史消息，添加到请求中
+            if messages:
+                for msg in messages:
+                    request_messages.append(msg)
+
+            # 如果有新的用户提示且不在历史消息中，添加到末尾
+            if prompt:
+                # 检查最后一条消息是否已经是这个prompt
+                if (
+                    not messages
+                    or messages[-1].get("content") != prompt
+                    or messages[-1].get("role") != "user"
+                ):
+                    request_messages.append({"role": "user", "content": prompt})
+
+            print(f"[AI分析] 发送消息数量: {len(request_messages)}")
+
             response = client.post(
                 model_config["endpoint"],
                 headers={
@@ -757,10 +803,7 @@ def ai_analyze():
                 },
                 json={
                     "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
+                    "messages": request_messages,
                     "temperature": model_config["temperature"],
                     "max_tokens": model_config["max_tokens"],
                 },
@@ -813,6 +856,85 @@ def get_ai_providers():
                 }
             )
         return jsonify({"success": True, "data": providers})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/ai/results/<match_id>", methods=["GET"])
+def get_ai_results(match_id):
+    """获取指定比赛的AI分析结果列表"""
+    try:
+        results_dir = Path("./results")
+        if not results_dir.exists():
+            return jsonify({"success": True, "data": []})
+
+        results = []
+        for f in results_dir.glob(f"*_{match_id}_*.md"):
+            filename = f.name
+            parts = filename.replace(".md", "").split("_")
+            if len(parts) >= 3:
+                timestamp = parts[0]
+                model = "_".join(parts[2:])
+                try:
+                    dt = datetime.strptime(timestamp, "%Y%m%d%H%M%S")
+                    formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    formatted_time = timestamp
+
+                with open(f, "r", encoding="utf-8") as fp:
+                    content = fp.read()
+                    content_preview = (
+                        content[:200] + "..." if len(content) > 200 else content
+                    )
+
+                results.append(
+                    {
+                        "filename": filename,
+                        "match_id": match_id,
+                        "model": model,
+                        "time": formatted_time,
+                        "content_preview": content_preview,
+                        "content_length": len(content),
+                    }
+                )
+
+        results.sort(key=lambda x: x["time"], reverse=True)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/ai/results/<match_id>/<filename>", methods=["GET"])
+def get_ai_result_content(match_id, filename):
+    """获取指定AI分析结果的详细内容"""
+    try:
+        filepath = Path(f"./results/{filename}")
+        if not filepath.exists():
+            return jsonify({"success": False, "error": "文件不存在"})
+
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        return jsonify({"success": True, "data": {"content": content}})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/ai/prompts/<match_id>", methods=["GET"])
+def get_prompt_content(match_id):
+    """获取指定比赛的Prompt内容"""
+    try:
+        prompt_files = list(Path("./prompts/save").glob(f"{match_id}_*_prompt.txt"))
+
+        if not prompt_files:
+            return jsonify({"success": False, "error": "Prompt文件不存在"})
+
+        latest_prompt_file = max(prompt_files, key=lambda f: f.stat().st_mtime)
+
+        with open(latest_prompt_file, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        return jsonify({"success": True, "data": {"content": content}})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
