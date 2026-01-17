@@ -30,59 +30,7 @@ class PromptConfig:
 class GameTheoryPromptGenerator:
     """博弈论分析Prompt生成器"""
 
-    SYSTEM_PROMPT = """你是一位精通博弈论（Game Theory）与动态赔率逻辑的顶级战略顾问。你的核心任务是识别机构在盘面上的**"财务对冲"与"真实防御"**。
-
-第一步：战力离散度与初盘定调（The Power Gap & Initial Tone）
-攻守效率对冲：计算主队主场进球效率与客队客场进球效率的离散度。
-
-核心准则：若主队主场场均进球 > 1.8 且客队客场场均进球 < 0.8，战力存在严重非对称。
-
-初盘性质判定：
-
-浅开：基本面全优但让球无力，首选怀疑为"名气诱导"。
-
-深开/硬开：排名接近但强行给到半球（0.5）或以上盘口。此时机构已通过物理门槛（必须赢球才能赢盘）隔离了大部分平局资金。
-
-预警信号：若主队近3场火力全开且客队进攻近乎停滞，任何**"升水"**行为必须优先判定为**"阻盘（阻挡高热方）"**，而非"诱多"。
-
-第二步：动态博弈假设（Game Theory Hypothesis）
-假设1（诱导策略/诱下）：机构利用"退盘后的便宜感"或"大幅降水"制造稳当感，吸引资金流向弱势方。
-
-假设2（阻碍策略/阻上）：机构维持高门槛盘口（如坚决不退盘），并给予高水位（1.0+）。
-
-博弈心理：利用玩家对"高位水位"的天然恐惧，以及对"平局"的贪婪，强行将资金赶向下盘。
-
-第三步：量价背离与变盘逻辑（Volume-Price Divergence）
-盘口硬度校验（关键修正）：
-
-阻盘（关门谢客）：水位持续拉升至满水，但盘口纹丝不动（例如始终维持在0.5）。结论：机构宁可背负单笔高赔付风险，也不愿降低赢盘难度。
-
-诱多（高位派发）：水位升高的同时伴随降盘（0.5退至0.25）。结论：机构对主胜信心崩塌，试图利用"名气+低门槛"吸引最后的回扣资金。
-
-平赔陷阱识别：若主胜赔率抬升的同时，平赔剧烈下调（如 3.5 -> 3.1）：
-
-若客队缺乏反击能力，此举为**"财务分流"**。机构利用"客队能守住"的心理诱导资金对冲平局，实则保护主胜。
-
-第四步：交叉逻辑检验（Cross-Verification）
-欧亚同步性：观察主胜拉升是否属于全行业行为。若仅是本土机构（如威廉希尔）压低平赔，多为针对当地热度的防御手段。
-
-非对称风险：观察是否存在"升水但不降盘"与"欧赔客胜赔率不动"的背离。若客胜赔率极高且不动，说明机构根本不担心客胜，所有调整均在"主胜"与"平局"之间做戏。
-
-第五步：确定性结论
-博弈结论：谁是真正的利益既得方？（谁在承担风险，谁在享受保护？）
-
-市场陷阱揭露：明确指出当前盘面最容易产生的**"名气错觉"或"排名接近导致的平局陷阱"**。
-
-实战建议：给出首选选项、对应的风险对冲方案及置信度。
-
-分析要求
-宏观结构分析：判断初始定位是否足以支撑市场需求平衡。
-
-证据推导：观察后期数据变化，验证博弈假设是否成立。
-
-最终倾向：明确给出谁是"更好的选择"，并指出市场陷阱所在。
-
-请严格按以上框架进行分析。"""
+    SYSTEM_PROMPT = """你是一位精通博弈论（Game Theory）与动态赔率逻辑的顶级战略顾问。你的核心任务是识别机构在盘面上的**"财务对冲"与"真实防御"**。"""
 
     BOOKMAKER_NAMES = {
         "macau": "澳门",
@@ -483,12 +431,10 @@ class GameTheoryPromptGenerator:
         prompt_parts.append("\n" + "=" * 60 + "\n")
 
         prompt_parts.append("## 待分析比赛")
-        prompt_parts.append(f"**对阵双方**: {home_team} VS {away_team}")
         prompt_parts.append(f"**比赛时间**: {info.get('match_time', 'N/A')}")
         prompt_parts.append(
             f"**联赛**: {info.get('league', 'N/A')} {info.get('round_num', 'N/A')}"
         )
-        prompt_parts.append(f"**场地**: {info.get('venue', 'N/A')}")
         prompt_parts.append(
             f"**天气**: {info.get('weather', 'N/A')} {info.get('temperature', 'N/A')}"
         )
@@ -497,16 +443,16 @@ class GameTheoryPromptGenerator:
         for entry in league_table:
             if entry.get("team_name") == home_team:
                 prompt_parts.append(
-                    f"主队 {home_team}: 第{entry.get('position', 'N/A')}名 {entry.get('points', 0)}分"
+                    f"主队: 第{entry.get('position', 'N/A')}名 {entry.get('points', 0)}分"
                 )
             if entry.get("team_name") == away_team:
                 prompt_parts.append(
-                    f"客队 {away_team}: 第{entry.get('position', 'N/A')}名 {entry.get('points', 0)}分"
+                    f"客队: 第{entry.get('position', 'N/A')}名 {entry.get('points', 0)}分"
                 )
 
         prompt_parts.append("\n## 基本面信息")
 
-        prompt_parts.append(f"### 主队 ({home_team})")
+        prompt_parts.append("### 主队")
         prompt_parts.append(
             f"- 联赛排名: {home_stats.get('rank', 'N/A')} | 积分: {home_stats.get('points', 'N/A')}"
         )
@@ -520,7 +466,7 @@ class GameTheoryPromptGenerator:
         )
         prompt_parts.append(f"- 近10场评分: {info.get('home_recent_ratings', [])}")
 
-        prompt_parts.append(f"\n### 客队 ({away_team})")
+        prompt_parts.append("\n### 客队")
         prompt_parts.append(
             f"- 联赛排名: {away_stats.get('rank', 'N/A')} | 积分: {away_stats.get('points', 'N/A')}"
         )
@@ -542,7 +488,7 @@ class GameTheoryPromptGenerator:
                 result = result_map.get(str(match.get("result", "")), "N/A")
                 prompt_parts.append(
                     f"{match.get('date', 'N/A')} | {match.get('league', 'N/A')} | "
-                    f"{match.get('home_team', 'N/A')} {match.get('home_goals', 0)} - {match.get('away_goals', 0)} {match.get('away_team', 'N/A')} | {result}"
+                    f"{match.get('home_goals', 0)} - {match.get('away_goals', 0)} | {result}"
                 )
 
         prompt_parts.append("\n## 亚盘数据 ( 主队水位 | 盘口 | 客队水位 )")
@@ -638,7 +584,16 @@ class GameTheoryPromptGenerator:
 - 是否存在"亚盘诱多但欧赔真实看好"的分歧？
 - 各庄家的操作是否形成合力还是各有打算？
 
-### 步骤5: 结论
+### 步骤5: 监控开赛前15分钟的即时水位异动，以捕捉最终的庄家财务对冲信号
+现在进入博弈逻辑的最后环节：【临场财务对冲监控】。请分析开赛前15分钟的即时数据，重点回答以下三个核心问题：
+- 资金归位信号：在盘口不变的情况下，哪一方的水位出现了超过 10% 的剧烈波动？这种波动是属于'顺应市场热度'的派发，还是'逆市操作'的财务防御？
+- 末端欧亚一致性检查：是否存在欧赔（如主胜）在拉升，但亚盘（如主队水位）却在强行压低的现象？这种**'量价背离'**是否代表机构在利用最后的时间差诱骗筹码？
+- 终极利益既得方判定：基于最后5分钟的赔付压力分布，如果比赛以目前水位结束，哪种赛果对机构而言'赔付总额最小'？
+
+### 步骤6: 辩论环节
+请模拟两名分析师，分析师 A 倾向于主胜，分析师 B 倾向于客胜。请让他们进行辩论。
+
+### 步骤7: 结论
 给出明确的分析结论:
 - **推荐选项**: 主胜 / 客胜 / 不让球平局
 - **盘口建议**: 对应的亚盘选择
