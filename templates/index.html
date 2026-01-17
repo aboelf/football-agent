@@ -1037,6 +1037,24 @@
         </div>
     </div>
 
+    <!-- 临时存储弹窗 -->
+    <div class="modal-overlay" id="tempStorageModal">
+        <div class="modal">
+            <div class="modal-title">
+                <span>💾</span> 临时存储已存在
+            </div>
+            <div class="modal-content">
+                <p>发现之前的 AI 分析结果（<span id="temp-storage-time"></span>）</p>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">是否加载之前的分析？选择"重新分析"将覆盖临时存储。</p>
+                <input type="hidden" id="temp-storage-match-id">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="skipTempAIResult()">重新分析</button>
+                <button class="btn btn-primary" onclick="loadTempAIResult()">加载之前</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentTab = 'all';
         let currentAnalysisTab = 'list';
@@ -2191,12 +2209,109 @@
             conversationMessages = [];
         }
 
+        // 临时存储相关函数
+        function getTempStorageKey(matchId) {
+            return `ai_temp_${matchId}`;
+        }
+
+        function saveTempAIResult(matchId, data) {
+            const key = getTempStorageKey(matchId);
+            const storageData = {
+                matchId: matchId,
+                time: new Date().toLocaleString('zh-CN'),
+                promptText: fullPromptText,
+                resultText: fullAIResultText,
+                conversationMessages: conversationMessages,
+                timestamp: Date.now()
+            };
+            try {
+                localStorage.setItem(key, JSON.stringify(storageData));
+                console.log('临时存储已保存:', key);
+            } catch (e) {
+                console.error('临时存储保存失败:', e);
+            }
+        }
+
+        function getTempAIResult(matchId) {
+            const key = getTempStorageKey(matchId);
+            try {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    return JSON.parse(data);
+                }
+            } catch (e) {
+                console.error('临时存储读取失败:', e);
+            }
+            return null;
+        }
+
+        function clearTempAIResult(matchId) {
+            const key = getTempStorageKey(matchId);
+            localStorage.removeItem(key);
+        }
+
+        function showTempStorageModal(matchId) {
+            const data = getTempAIResult(matchId);
+            if (!data) return;
+
+            document.getElementById('temp-storage-match-id').value = matchId;
+            document.getElementById('temp-storage-time').textContent = data.time;
+            document.getElementById('tempStorageModal').classList.add('show');
+        }
+
+        function closeTempStorageModal() {
+            document.getElementById('tempStorageModal').classList.remove('show');
+        }
+
+        async function loadTempAIResult() {
+            const matchId = document.getElementById('temp-storage-match-id').value;
+            const data = getTempAIResult(matchId);
+            if (!data) {
+                closeTempStorageModal();
+                return;
+            }
+
+            closeTempStorageModal();
+
+            currentMatchIdForAI = matchId;
+            document.getElementById('right-odds-card').style.display = 'none';
+            document.getElementById('ai-analysis-card').style.display = 'block';
+
+            fullPromptText = data.promptText || '';
+            fullAIResultText = data.resultText || '';
+            conversationMessages = data.conversationMessages || [];
+
+            document.getElementById('ai-prompt-section').style.display = 'none';
+            document.getElementById('ai-loading-section').style.display = 'none';
+            document.getElementById('ai-chat-section').style.display = 'block';
+            document.getElementById('ai-result-time').textContent = data.time + ' (临时存储)';
+
+            if (fullPromptText) {
+                document.getElementById('ai-prompt-preview').textContent = fullPromptText.substring(0, 500) + '...';
+            }
+
+            renderChatMessages();
+        }
+
+        function skipTempAIResult() {
+            closeTempStorageModal();
+            checkExistingAIResults(document.getElementById('temp-storage-match-id').value);
+        }
+
         function showAIAnalysis(matchId) {
             currentMatchIdForAI = matchId;
             document.getElementById('right-odds-card').style.display = 'none';
             document.getElementById('ai-analysis-card').style.display = 'block';
 
             resetAIAnalysis();
+
+            // 先检查临时存储
+            const tempData = getTempAIResult(matchId);
+            if (tempData) {
+                showTempStorageModal(matchId);
+                return;
+            }
+
             checkExistingAIResults(matchId);
         }
 
@@ -2368,6 +2483,11 @@
 
                     renderChatMessages();
                     showNotification('AI 分析完成', 'success');
+
+                    // 保存到临时存储
+                    if (finalMatchId) {
+                        saveTempAIResult(finalMatchId);
+                    }
                 } else {
                     document.getElementById('chat-messages').innerHTML = '<div style="color: var(--error-color); text-align: center; padding: 40px;">分析失败: ' + (data.error || '未知错误') + '</div>';
                 }
@@ -2414,6 +2534,11 @@
 
                     renderChatMessages();
                     showNotification('AI 已回复', 'success');
+
+                    // 保存到临时存储
+                    if (currentMatchIdForAI) {
+                        saveTempAIResult(currentMatchIdForAI);
+                    }
                 } else {
                     showNotification('AI 回复失败: ' + (data.error || '未知错误'), 'error');
                 }
