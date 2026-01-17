@@ -49,6 +49,7 @@ class Bookmaker(Enum):
                 Bookmaker.BET365: 281,
                 Bookmaker.EASYBET: 90,
                 Bookmaker.WILLIAM: 115,
+                Bookmaker.MACAU: 80,
                 Bookmaker.BETFAIR: 2,
             }[self]
         elif odds_type == OddsType.OVERUNDER:
@@ -63,10 +64,11 @@ class Bookmaker(Enum):
 BOOKMAKER_HANDICAP_IDS = {
     OddsType.HANDICAP: [Bookmaker.MACAU, Bookmaker.BET365, Bookmaker.EASYBET],
     OddsType.ODDS: [
+        Bookmaker.MACAU,
         Bookmaker.WILLIAM,
         Bookmaker.BET365,
         Bookmaker.EASYBET,
-        Bookmaker.BETFAIR,
+        # Bookmaker.BETFAIR,  # 欧赔暂无数据
     ],
     OddsType.OVERUNDER: [Bookmaker.MACAU, Bookmaker.BET365, Bookmaker.EASYBET],
 }
@@ -522,7 +524,7 @@ class DataDownloader:
         return results
 
     def download_all_odds(self, match_id: str, use_browser: bool = True) -> Dict:
-        """下载欧赔所有庄家赔率 (威廉/bet365/易胜博/betfair)"""
+        """下载欧赔所有庄家赔率 (澳门/威廉/bet365/易胜博)"""
         results = {}
         for bookmaker in BOOKMAKER_HANDICAP_IDS.get(OddsType.ODDS, []):
             result = self.download_odds_data(
