@@ -939,26 +939,46 @@
                             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 8px;">这可能需要几秒钟</p>
                         </div>
 
-                        <div class="ai-section" id="ai-result-section" style="display: none;">
-                            <div style="margin-bottom: 16px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                    <span style="color: var(--text-secondary); font-size: 0.85rem;">生成时间: <span id="ai-result-time"></span></span>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="btn btn-secondary btn-small" onclick="copyPrompt()">
-                                            <span>📋</span> <span id="copy-prompt-btn">复制Prompt</span>
-                                        </button>
-                                        <button class="btn btn-secondary btn-small" onclick="toggleFullPrompt()">
-                                            <span id="toggle-prompt-btn">显示完整</span>
-                                        </button>
-                                        <button class="btn btn-secondary btn-small" onclick="showFullResult()">
-                                            <span>📄</span> 查看完整分析
-                                        </button>
-                                    </div>
-                                </div>
-                                <div id="ai-prompt-preview" style="background: var(--bg-dark); padding: 12px; border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary); max-height: 150px; overflow-y: auto; margin-bottom: 16px; display: none;">
+                        <div class="ai-section" id="ai-chat-section" style="display: none;">
+                            <div class="chat-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span style="color: var(--text-secondary); font-size: 0.85rem;">生成时间: <span id="ai-result-time"></span></span>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary btn-small" onclick="copyPrompt()">
+                                        <span>📋</span> <span id="copy-prompt-btn">复制Prompt</span>
+                                    </button>
+                                    <button class="btn btn-secondary btn-small" onclick="toggleFullPrompt()">
+                                        <span id="toggle-prompt-btn">显示完整</span>
+                                    </button>
+                                    <button class="btn btn-secondary btn-small" onclick="showFullResult()">
+                                        <span>📄</span> 查看完整
+                                    </button>
+                                    <button class="btn btn-secondary btn-small" onclick="saveConversation()">
+                                        <span>💾</span> 保存对话
+                                    </button>
                                 </div>
                             </div>
-                            <div id="ai-result-content" style="background: var(--bg-dark); padding: 16px; border-radius: 8px; font-size: 0.9rem; line-height: 1.8; white-space: pre-wrap; max-height: 600px; overflow-y: auto;">
+
+                            <div id="ai-prompt-preview" style="background: var(--bg-dark); padding: 12px; border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary); max-height: 120px; overflow-y: auto; margin-bottom: 16px; display: none;">
+                            </div>
+
+                            <div class="chat-messages" id="chat-messages" style="background: var(--bg-dark); border-radius: 12px; padding: 16px; max-height: 350px; overflow-y: auto; margin-bottom: 16px;">
+                            </div>
+
+                            <div class="chat-input-area" style="display: flex; gap: 8px;">
+                                <input type="text" id="chat-input" placeholder="输入您的问题，继续对话..." style="flex: 1; padding: 12px 16px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 0.9rem;" onkeypress="if(event.key==='Enter') sendChatMessage()">
+                                <button class="btn btn-primary" onclick="sendChatMessage()">
+                                    <span>发送</span>
+                                </button>
+                            </div>
+                            <div id="chat-loading" style="display: none; margin-top: 12px; text-align: center; color: var(--text-secondary);">
+                                <div class="spinner" style="width: 20px; height: 20px; margin: 0 auto;"></div>
+                                <p style="font-size: 0.85rem; margin-top: 8px;">AI 思考中...</p>
+                            </div>
+
+                            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                                <button class="btn btn-primary" style="flex: 1;" onclick="startNewAnalysis()">
+                                    <span>🔄</span> 重新分析
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1022,6 +1042,14 @@
         let currentAnalysisTab = 'list';
         let isDownloading = false;
         let pendingMatchId = null;
+        let currentMatchIdForOdds = null;
+        let currentMatchIdForAI = null;
+        let fullPromptText = '';
+        let fullAIResultText = '';
+        let currentAIResultData = null;
+        let conversationMessages = [];
+        let currentAIProvider = 'local-gemini';
+        let currentAIModel = 'gemini-3.0-flash';
 
         function filterDigits(input) {
             input.value = input.value.replace(/\D/g, '');
@@ -1936,15 +1964,6 @@
             currentAnalysisTab = 'list';
         }
 
-        let currentMatchIdForOdds = null;
-        let currentMatchIdForAI = null;
-        let fullPromptText = '';
-        let fullAIResultText = '';
-        let currentAIResultData = null;
-        let conversationMessages = [];
-        let currentAIProvider = 'local-gemini';
-        let currentAIModel = 'gemini-3.0-flash';
-
         async function loadOddsData() {
             if (!currentMatchIdForOdds) return;
 
@@ -2166,15 +2185,10 @@
         function resetAIAnalysis() {
             document.getElementById('ai-prompt-section').style.display = 'block';
             document.getElementById('ai-loading-section').style.display = 'none';
-            document.getElementById('ai-result-section').style.display = 'none';
+            document.getElementById('ai-chat-section').style.display = 'none';
             document.getElementById('ai-prompt-preview').style.display = 'none';
             document.getElementById('toggle-prompt-btn').textContent = '显示完整';
             conversationMessages = [];
-
-            const conversationUI = document.getElementById('conversation-ui');
-            if (conversationUI) {
-                conversationUI.style.display = 'none';
-            }
         }
 
         function showAIAnalysis(matchId) {
@@ -2197,37 +2211,11 @@
 
                     document.getElementById('ai-prompt-section').style.display = 'none';
                     document.getElementById('ai-loading-section').style.display = 'none';
-                    document.getElementById('ai-result-section').style.display = 'block';
+                    document.getElementById('ai-chat-section').style.display = 'block';
 
                     document.getElementById('ai-result-time').textContent = latestResult.time + ' (已有分析结果)';
 
                     fetchFullAIResult(latestResult.filename, matchId);
-
-                    const resultSection = document.getElementById('ai-result-section');
-                    const existingBtn = resultSection.querySelector('.btn-reanalyze');
-                    if (!existingBtn) {
-                        const analyzeBtn = document.createElement('button');
-                        analyzeBtn.className = 'btn btn-primary btn-reanalyze';
-                        analyzeBtn.style.marginTop = '16px';
-                        analyzeBtn.style.width = '100%';
-                        analyzeBtn.innerHTML = '<span>🔄</span> 重新分析';
-                        analyzeBtn.onclick = function() {
-                            currentAIResultData = null;
-                            conversationMessages = [];
-                            resetAIAnalysis();
-                        };
-                        resultSection.appendChild(analyzeBtn);
-
-                        const continueBtn = document.createElement('button');
-                        continueBtn.className = 'btn btn-secondary';
-                        continueBtn.style.marginTop = '8px';
-                        continueBtn.style.width = '100%';
-                        continueBtn.innerHTML = '<span>💬</span> 继续对话';
-                        continueBtn.onclick = function() {
-                            showConversationUI();
-                        };
-                        resultSection.appendChild(continueBtn);
-                    }
                 } else {
                     currentAIResultData = null;
                     conversationMessages = [];
@@ -2246,7 +2234,6 @@
 
                 if (data.success && data.data && data.data.content) {
                     fullAIResultText = data.data.content;
-                    document.getElementById('ai-result-content').innerHTML = formatAIResult(fullAIResultText);
 
                     const promptRes = await fetch(`/api/ai/prompts/${matchId}`);
                     const promptData = await promptRes.json();
@@ -2254,10 +2241,46 @@
                         fullPromptText = promptData.data.content;
                         document.getElementById('ai-prompt-preview').textContent = fullPromptText.substring(0, 500) + '...';
                     }
+
+                    conversationMessages = [
+                        { role: 'user', content: fullPromptText },
+                        { role: 'assistant', content: fullAIResultText }
+                    ];
+                    renderChatMessages();
                 }
             } catch (error) {
                 console.error('获取完整AI结果失败:', error);
             }
+        }
+
+        function renderChatMessages() {
+            const container = document.getElementById('chat-messages');
+            let html = '';
+
+            for (const msg of conversationMessages) {
+                const isUser = msg.role === 'user';
+                const roleLabel = isUser ? '你' : 'AI';
+                const roleColor = isUser ? 'var(--primary-color)' : 'var(--accent-color)';
+                const bgColor = isUser ? 'rgba(0, 212, 255, 0.1)' : 'rgba(0, 255, 136, 0.1)';
+                const content = formatAIResult(msg.content);
+
+                html += `<div class="chat-message" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="color: ${roleColor}; font-weight: 500; font-size: 0.85rem;">${roleLabel}</span>
+                        <span style="color: var(--text-secondary); font-size: 0.75rem;">${new Date().toLocaleTimeString('zh-CN')}</span>
+                    </div>
+                    <div style="background: ${bgColor}; padding: 12px; border-radius: 8px; font-size: 0.9rem; line-height: 1.7; color: var(--text-primary);">
+                        ${content}
+                    </div>
+                </div>`;
+            }
+
+            if (conversationMessages.length === 0) {
+                html = '<div style="color: var(--text-secondary); text-align: center; padding: 40px;">开始对话吧！</div>';
+            }
+
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
         }
 
         async function generateAndAnalyze() {
@@ -2295,19 +2318,16 @@
                 if (data.success) {
                     fullPromptText = data.data.prompt;
                     const matchIdFromApi = data.data.match_id || currentMatchIdForAI || 'unknown';
-                    console.log('[Prompt生成] API返回match_id:', data.data.match_id, '前端currentMatchIdForAI:', currentMatchIdForAI, '最终matchId:', matchIdFromApi);
 
-                    document.getElementById('ai-prompt-section').style.display = 'none';
                     document.getElementById('ai-prompt-preview').style.display = 'block';
                     document.getElementById('ai-prompt-preview').textContent = fullPromptText.substring(0, 500) + '...';
                     document.getElementById('toggle-prompt-btn').textContent = '显示完整';
 
                     document.getElementById('ai-loading-section').style.display = 'block';
                     document.getElementById('ai-loading-section').querySelector('p:nth-child(2)').textContent = 'AI 正在分析比赛数据...';
-                    document.getElementById('ai-result-time').textContent = new Date().toLocaleString('zh-CN');
 
-                    document.getElementById('ai-result-section').style.display = 'block';
-                    document.getElementById('ai-result-content').innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">AI 分析中...</div>';
+                    document.getElementById('ai-chat-section').style.display = 'block';
+                    document.getElementById('chat-messages').innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 40px;">AI 分析中...</div>';
 
                     callAIAnalysis(fullPromptText, matchIdFromApi);
                 } else {
@@ -2322,7 +2342,6 @@
 
         async function callAIAnalysis(promptText, matchId) {
             const finalMatchId = matchId || currentMatchIdForAI || 'unknown';
-            console.log('[AI分析] matchId参数:', matchId, 'currentMatchIdForAI:', currentMatchIdForAI, '最终matchId:', finalMatchId);
 
             try {
                 const res = await fetch('/api/ai/analyze', {
@@ -2338,27 +2357,77 @@
                 });
 
                 document.getElementById('ai-loading-section').style.display = 'none';
-                document.getElementById('ai-result-section').style.display = 'block';
 
                 const data = await res.json();
 
                 if (data.success) {
                     fullAIResultText = data.data.response;
-                    console.log('AI分析结果长度:', fullAIResultText.length);
-                    console.log('AI分析结果:', fullAIResultText);
-                    document.getElementById('ai-result-content').innerHTML = formatAIResult(fullAIResultText);
 
                     conversationMessages.push({ role: 'user', content: promptText });
                     conversationMessages.push({ role: 'assistant', content: fullAIResultText });
-                    console.log('对话历史已更新，当前消息数:', conversationMessages.length);
+
+                    renderChatMessages();
+                    showNotification('AI 分析完成', 'success');
                 } else {
-                    document.getElementById('ai-result-content').innerHTML = '<span style="color: var(--error-color);">分析失败: ' + (data.error || '未知错误') + '</span>';
+                    document.getElementById('chat-messages').innerHTML = '<div style="color: var(--error-color); text-align: center; padding: 40px;">分析失败: ' + (data.error || '未知错误') + '</div>';
                 }
             } catch (error) {
-                document.getElementById('ai-loading-section').style.display = 'none';
-                document.getElementById('ai-result-section').style.display = 'block';
-                document.getElementById('ai-result-content').innerHTML = '<span style="color: var(--error-color);">分析失败: ' + error.message + '</span>';
+                document.getElementById('chat-messages').innerHTML = '<div style="color: var(--error-color); text-align: center; padding: 40px;">分析失败: ' + error.message + '</div>';
             }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) {
+                showNotification('请输入内容', 'warning');
+                return;
+            }
+
+            document.getElementById('chat-loading').style.display = 'block';
+            input.disabled = true;
+
+            try {
+                const res = await fetch('/api/ai/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: message,
+                        provider: currentAIProvider,
+                        model: currentAIModel,
+                        match_id: currentMatchIdForAI || 'unknown',
+                        messages: conversationMessages
+                    })
+                });
+
+                document.getElementById('chat-loading').style.display = 'none';
+                input.disabled = false;
+
+                const data = await res.json();
+
+                if (data.success) {
+                    input.value = '';
+                    fullAIResultText = data.data.response;
+
+                    conversationMessages.push({ role: 'user', content: message });
+                    conversationMessages.push({ role: 'assistant', content: fullAIResultText });
+
+                    renderChatMessages();
+                    showNotification('AI 已回复', 'success');
+                } else {
+                    showNotification('AI 回复失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                document.getElementById('chat-loading').style.display = 'none';
+                input.disabled = false;
+                showNotification('发送失败: ' + error.message, 'error');
+            }
+        }
+
+        function startNewAnalysis() {
+            currentAIResultData = null;
+            conversationMessages = [];
+            resetAIAnalysis();
         }
 
         const modelOptions = {
@@ -2416,111 +2485,13 @@
             }
         }
 
-        function showConversationUI() {
-            const aiAnalysisContent = document.getElementById('ai-analysis-content');
-
-            let conversationUI = document.getElementById('conversation-ui');
-            if (!conversationUI) {
-                conversationUI = document.createElement('div');
-                conversationUI.id = 'conversation-ui';
-                conversationUI.className = 'conversation-section';
-                conversationUI.style.marginTop = '24px';
-                conversationUI.style.borderTop = '1px solid var(--border-color)';
-                conversationUI.style.paddingTop = '16px';
-                conversationUI.innerHTML = `
-                    <h4 style="color: var(--accent-color); font-size: 0.95rem; margin-bottom: 12px;">💬 继续对话</h4>
-                    <div id="conversation-history" style="max-height: 200px; overflow-y: auto; background: var(--bg-dark); border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 0.85rem; line-height: 1.6;">
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="conversation-input" placeholder="输入您的问题..." style="flex: 1; padding: 10px 14px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem;" onkeypress="if(event.key==='Enter') sendConversationMessage()">
-                        <button class="btn btn-primary" onclick="sendConversationMessage()">
-                            <span>发送</span>
-                        </button>
-                    </div>
-                    <div id="conversation-loading" style="display: none; margin-top: 12px; text-align: center; color: var(--text-secondary);">
-                        <div class="spinner" style="width: 20px; height: 20px; margin: 0 auto;"></div>
-                        <p style="font-size: 0.85rem; margin-top: 8px;">AI 思考中...</p>
-                    </div>
-                `;
-                aiAnalysisContent.appendChild(conversationUI);
-            }
-
-            conversationUI.style.display = 'block';
-            document.getElementById('conversation-input').focus();
-            renderConversationHistory();
-        }
-
-        function renderConversationHistory() {
-            const historyContainer = document.getElementById('conversation-history');
-            if (!historyContainer) return;
-
-            let html = '';
-            for (const msg of conversationMessages) {
-                const isUser = msg.role === 'user';
-                const roleLabel = isUser ? '你' : 'AI';
-                const roleColor = isUser ? 'var(--primary-color)' : 'var(--accent-color)';
-                const content = msg.content.length > 200 ? msg.content.substring(0, 200) + '...' : msg.content;
-                html += `<div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                    <span style="color: ${roleColor}; font-weight: 500;">${roleLabel}:</span>
-                    <span style="color: var(--text-primary); margin-left: 8px;">${content}</span>
-                </div>`;
-            }
-
-            if (conversationMessages.length === 0) {
-                html = '<div style="color: var(--text-secondary); text-align: center;">暂无对话历史，开始对话吧！</div>';
-            }
-
-            historyContainer.innerHTML = html;
-            historyContainer.scrollTop = historyContainer.scrollHeight;
-        }
-
-        async function sendConversationMessage() {
-            const input = document.getElementById('conversation-input');
-            const message = input.value.trim();
-            if (!message) {
-                showNotification('请输入内容', 'warning');
-                return;
-            }
-
-            document.getElementById('conversation-loading').style.display = 'block';
-            input.disabled = true;
-
-            try {
-                const res = await fetch('/api/ai/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: message,
-                        provider: currentAIProvider,
-                        model: currentAIModel,
-                        match_id: currentMatchIdForAI || 'unknown',
-                        messages: conversationMessages
-                    })
-                });
-
-                document.getElementById('conversation-loading').style.display = 'none';
-                input.disabled = false;
-
-                const data = await res.json();
-
-                if (data.success) {
-                    input.value = '';
-                    fullAIResultText = data.data.response;
-                    document.getElementById('ai-result-content').innerHTML = formatAIResult(fullAIResultText);
-
-                    conversationMessages.push({ role: 'user', content: message });
-                    conversationMessages.push({ role: 'assistant', content: fullAIResultText });
-
-                    renderConversationHistory();
-                    showNotification('AI 已回复', 'success');
-                } else {
-                    showNotification('AI 回复失败: ' + (data.error || '未知错误'), 'error');
-                }
-            } catch (error) {
-                document.getElementById('conversation-loading').style.display = 'none';
-                input.disabled = false;
-                showNotification('发送失败: ' + error.message, 'error');
-            }
+        function formatAIResult(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>')
+                .replace(/## (.*?)<br>/g, '<h3 style="color: var(--primary-color); margin: 16px 0 8px;">$1</h3>')
+                .replace(/### (.*?)<br>/g, '<h4 style="color: var(--accent-color); margin: 12px 0 6px;">$1</h4>')
+                .replace(/- (.*?)<br>/g, '<li style="margin-left: 20px;">$1</li>');
         }
 
         function toggleFullPrompt() {
@@ -2548,6 +2519,46 @@
                 }, 2000);
             } catch (error) {
                 showNotification('复制失败', 'error');
+            }
+        }
+
+        async function saveConversation() {
+            if (conversationMessages.length === 0) {
+                showNotification('暂无对话内容可保存', 'warning');
+                return;
+            }
+
+            try {
+                let fullContent = '# AI博弈论分析对话记录\n\n';
+                fullContent += `比赛ID: ${currentMatchIdForAI || "unknown"}\n`;
+                fullContent += `模型: ${currentAIModel}\n`;
+                fullContent += `时间: ${new Date().toLocaleString('zh-CN')}\n`;
+                fullContent += '---\n\n';
+
+                for (const msg of conversationMessages) {
+                    const roleLabel = msg.role === 'user' ? '【用户】' : '【AI】';
+                    fullContent += `${roleLabel}\n${msg.content}\n\n`;
+                }
+
+                const res = await fetch('/api/ai/save/conversation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        match_id: currentMatchIdForAI || 'unknown',
+                        model: currentAIModel,
+                        content: fullContent
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    showNotification('对话已保存: ' + data.data.filename, 'success');
+                } else {
+                    showNotification('保存失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showNotification('保存失败: ' + error.message, 'error');
             }
         }
 

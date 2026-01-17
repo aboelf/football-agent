@@ -762,7 +762,6 @@ def ai_analyze():
                     if len(ai_response) > 500
                     else f"[AI分析] MiniMax 原始返回内容:\n{ai_response}"
                 )
-                save_ai_result(match_id, model, ai_response)
                 return jsonify({"success": True, "data": {"response": ai_response}})
             else:
                 return jsonify(
@@ -820,7 +819,6 @@ def ai_analyze():
                     if len(ai_response) > 500
                     else f"[AI分析] 原始返回内容:\n{ai_response}"
                 )
-                save_ai_result(match_id, model, ai_response)
                 return jsonify({"success": True, "data": {"response": ai_response}})
             else:
                 return jsonify(
@@ -916,6 +914,34 @@ def get_ai_result_content(match_id, filename):
             content = f.read()
 
         return jsonify({"success": True, "data": {"content": content}})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/ai/save/conversation", methods=["POST"])
+def save_conversation():
+    """保存对话内容到results目录"""
+    try:
+        data = request.get_json()
+        match_id = data.get("match_id", "unknown")
+        model = data.get("model", "unknown")
+        conversation_content = data.get("content", "")
+
+        if not conversation_content:
+            return jsonify({"success": False, "error": "对话内容为空"})
+
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = f"{timestamp}_{match_id}_{model}.md"
+
+        results_dir = Path("./results")
+        results_dir.mkdir(exist_ok=True)
+
+        filepath = results_dir / filename
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(conversation_content)
+
+        return jsonify({"success": True, "data": {"filename": filename}})
+
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
