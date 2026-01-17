@@ -3,7 +3,8 @@
     "allow": [
       "Bash(curl:*)",
       "Bash(pip install:*)",
-      "Bash(playwright install:*)"
+      "Bash(playwright install:*)",
+      "Bash(python:*)"
     ]
   }
 }
