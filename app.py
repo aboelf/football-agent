@@ -303,33 +303,6 @@ def download_overunder_all_data():
         return jsonify({"success": False, "error": str(e)})
 
 
-@app.route("/api/download/overunder", methods=["POST"])
-def download_overunder_data():
-    """下载大小球数据到 data/odds/overunder/ 目录"""
-    data = request.get_json()
-
-    if not data or "match_id" not in data:
-        return jsonify({"success": False, "error": "缺少比赛编号"})
-
-    match_id = data.get("match_id")
-    if not match_id:
-        return jsonify({"success": False, "error": "比赛编号不能为空"})
-
-    match_id = str(match_id).strip()
-    if not match_id:
-        return jsonify({"success": False, "error": "比赛编号不能为空"})
-
-    company_id = data.get("company_id", 1)
-
-    try:
-        result = downloader.download_overunder_to_data_overunder(
-            match_id, company_id=company_id
-        )
-        return jsonify({"success": result.get("status") == "success", "data": result})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
 @app.route("/api/download/odds/all", methods=["POST"])
 def download_all_odds():
     """下载所有类型赔率数据"""
