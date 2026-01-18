@@ -897,13 +897,13 @@
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">AI 提供商</label>
                                 <select id="ai-provider-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;" onchange="updateModelOptions()">
                                     <option value="minimax">MiniMax</option>
-                                    <option value="local-gemini">本地 Gemini (兼容OpenAI)</option>
+                                    <option value="local-gemini" selected>本地 Gemini (兼容OpenAI)</option>
                                 </select>
                             </div>
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">模型选择</label>
                                 <select id="ai-model-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;">
-                                    <option value="minimax-m2.1">MiniMax-M2.1</option>
+                                    <option value="gemini-3.0-flash">Gemini 3.0 Flash</option>
                                 </select>
                             </div>
                             <div style="margin-bottom: 16px;">
@@ -1059,6 +1059,7 @@
             refreshStats();
             refreshFiles();
             loadAnalysisList();
+            updateModelOptions();
 
             document.querySelectorAll('.option-card').forEach(card => {
                 card.addEventListener('click', () => {
