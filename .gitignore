@@ -7,3 +7,4 @@ __pycache__/
 parsers/__pycache__/analysis_parser.cpython-314.pyc
 __pycache__/app.cpython-314.pyc
 results/
+backtest/prompts
