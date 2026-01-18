@@ -650,8 +650,8 @@ def ai_analyze():
 
         data = request.get_json()
         prompt = data.get("prompt")
-        provider = data.get("provider", "deepseek")
-        model = data.get("model", "deepseek-chat")
+        provider = data.get("provider", "local-gemini")
+        model = data.get("model", "gemini-3.0-flash")
         match_id = data.get("match_id", "unknown")
         messages = data.get("messages", [])  # 支持多轮对话消息历史
 
