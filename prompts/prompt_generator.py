@@ -132,8 +132,9 @@ class GameTheoryPromptGenerator:
                 continue
 
             try:
-                status = cols[6].get_text(strip=True)
-                if status != "即":
+                status_td = cols[6]
+                td_class = status_td.get("class") or []
+                if "hg_blue" in td_class:
                     continue
 
                 home_odds_text = cols[2].get_text(strip=True)

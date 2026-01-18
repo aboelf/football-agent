@@ -229,11 +229,13 @@ def parse_team_stats_from_table(
 
     section = team_match.group(0)
 
-    rows = re.findall(r'<tr[^>]*bgcolor="#FFECEC"[^>]*>(.*?)</tr>', section, re.DOTALL)
+    rows = re.findall(
+        r'<tr[^>]*bgcolor=["\']?#FFECEC["\']?[^>]*>(.*?)</tr>', section, re.DOTALL
+    )
 
     if len(rows) < 2:
         rows2 = re.findall(
-            r'<tr[^>]*bgcolor="#CCCCFF"[^>]*>(.*?)</tr>', section, re.DOTALL
+            r'<tr[^>]*bgcolor=["\']?#CCCCFF["\']?[^>]*>(.*?)</tr>', section, re.DOTALL
         )
         rows = rows + rows2
 
@@ -259,12 +261,12 @@ def parse_team_stats_from_table(
                 )
 
     home_rows = re.findall(
-        r'<tr[^>]*bgcolor="#FFECEC"[^>]*>(.*?)</tr>', section, re.DOTALL
+        r'<tr[^>]*bgcolor=["\']?#FFECEC["\']?[^>]*>(.*?)</tr>', section, re.DOTALL
     )
 
     if len(home_rows) < 2:
         home_rows2 = re.findall(
-            r'<tr[^>]*bgcolor="#CCCCFF"[^>]*>(.*?)</tr>', section, re.DOTALL
+            r'<tr[^>]*bgcolor=["\']?#CCCCFF["\']?[^>]*>(.*?)</tr>', section, re.DOTALL
         )
         home_rows = home_rows + home_rows2
 
@@ -518,7 +520,7 @@ def extract_match_info(html: str) -> MatchBasicInfo:
     home_match = re.search(r'var\s+hometeam\s*=\s*"([^"]+)"', html)
     away_match = re.search(r'var\s+guestteam\s*=\s*"([^"]+)"', html)
     time_match = re.search(r"var\s+strTime\s*=\s*'([^']+)'", html)
-    league_match = re.search(r'class="LName">([^<]+)</a>', html)
+    league_match = re.search(r"class=['\"]LName['\"]>([^<]+)</a>", html)
 
     home_score_match = re.search(r'class="score">(\d+)</div>', html)
     away_score_match = re.search(r'class="score gt">(\d+)</div>', html)
