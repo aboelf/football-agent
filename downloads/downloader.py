@@ -520,7 +520,7 @@ class DataDownloader:
                 use_browser=use_browser,
             )
             results[bookmaker.value] = result
-            time.sleep(1)
+            time.sleep(0.25)
         return results
 
     def download_all_odds(self, match_id: str, use_browser: bool = True) -> Dict:
@@ -534,7 +534,7 @@ class DataDownloader:
                 use_browser=use_browser,
             )
             results[bookmaker.value] = result
-            time.sleep(1)
+            time.sleep(0.25)
         return results
 
     def download_all_overunder(self, match_id: str, use_browser: bool = True) -> Dict:
@@ -548,7 +548,7 @@ class DataDownloader:
                 use_browser=use_browser,
             )
             results[bookmaker.value] = result
-            time.sleep(1)
+            time.sleep(0.25)
         return results
 
     def download_all_overunder_data(
@@ -570,7 +570,7 @@ class DataDownloader:
                 use_browser=use_browser,
             )
             results[bookmaker_name] = result
-            time.sleep(1)
+            time.sleep(0.25)
 
         return results
 
@@ -748,12 +748,12 @@ class DataDownloader:
         if include_handicap:
             print("\n--- 亚盘 Handciap ---")
             handicap_result = self.download_all_handicap(match_id, use_browser)
-            time.sleep(1)
+            time.sleep(0.25)
 
         if include_odds:
             print("\n--- 欧赔 Odds ---")
             odds_result = self.download_all_odds(match_id, use_browser)
-            time.sleep(1)
+            time.sleep(0.25)
 
         if include_overunder:
             print("\n--- 大小球 OverUnder ---")
