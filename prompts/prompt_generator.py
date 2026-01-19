@@ -18,7 +18,7 @@ from datetime import datetime
 class PromptConfig:
     """Prompt配置选项"""
 
-    include_h2h: bool = True
+    include_h2h: bool = False
     include_recent_matches: bool = False
     include_league_table: bool = True
     use_all_bookmakers: bool = True
@@ -397,7 +397,6 @@ class GameTheoryPromptGenerator:
         away_stats = data.get("away_team_full_stats", {})
         home_home = data.get("home_team_home_stats", {})
         away_away = data.get("away_team_away_stats", {})
-        h2h = data.get("h2h_records", []) if config.include_h2h else []
         league_table = (
             data.get("league_table", []) if config.include_league_table else []
         )
@@ -461,11 +460,11 @@ class GameTheoryPromptGenerator:
             f"- 总战绩: {home_stats.get('wins', 0)}胜 {home_stats.get('draws', 0)}平 {home_stats.get('losses', 0)}负 "
             f"(进{home_stats.get('goals_for', 0)}失{home_stats.get('goals_against', 0)})"
         )
-        prompt_parts.append(
-            f"- 主场战绩: {home_home.get('wins', 0)}胜 {home_home.get('draws', 0)}平 {home_home.get('losses', 0)}负 "
-            f"(进{home_home.get('goals_for', 0)}失{home_home.get('goals_against', 0)})"
-        )
-        prompt_parts.append(f"- 近10场评分: {info.get('home_recent_ratings', [])}")
+        # prompt_parts.append(
+        #     f"- 主场战绩: {home_home.get('wins', 0)}胜 {home_home.get('draws', 0)}平 {home_home.get('losses', 0)}负 "
+        #     f"(进{home_home.get('goals_for', 0)}失{home_home.get('goals_against', 0)})"
+        # )
+        # prompt_parts.append(f"- 近10场评分: {info.get('home_recent_ratings', [])}")
 
         prompt_parts.append("\n### 客队")
         prompt_parts.append(
@@ -475,22 +474,11 @@ class GameTheoryPromptGenerator:
             f"- 总战绩: {away_stats.get('wins', 0)}胜 {away_stats.get('draws', 0)}平 {away_stats.get('losses', 0)}负 "
             f"(进{away_stats.get('goals_for', 0)}失{away_stats.get('goals_against', 0)})"
         )
-        prompt_parts.append(
-            f"- 客场战绩: {away_away.get('wins', 0)}胜 {away_away.get('draws', 0)}平 {away_away.get('losses', 0)}负 "
-            f"(进{away_away.get('goals_for', 0)}失{away_away.get('goals_against', 0)})"
-        )
-        prompt_parts.append(f"- 近10场评分: {info.get('away_recent_ratings', [])}")
-
-        if h2h:
-            prompt_parts.append(f"\n## 历史交锋 (近5场)")
-            h2h.reverse()
-            for match in h2h[:5]:
-                result_map = {"1": "主胜", "0": "平", "-1": "客胜"}
-                result = result_map.get(str(match.get("result", "")), "N/A")
-                prompt_parts.append(
-                    f"{match.get('date', 'N/A')} | {match.get('league', 'N/A')} | "
-                    f"{match.get('home_goals', 0)} - {match.get('away_goals', 0)} | {result}"
-                )
+        # prompt_parts.append(
+        #     f"- 客场战绩: {away_away.get('wins', 0)}胜 {away_away.get('draws', 0)}平 {away_away.get('losses', 0)}负 "
+        #     f"(进{away_away.get('goals_for', 0)}失{away_away.get('goals_against', 0)})"
+        # )
+        # prompt_parts.append(f"- 近10场评分: {info.get('away_recent_ratings', [])}")
 
         prompt_parts.append("\n## 亚盘数据 ( 主队水位 | 盘口 | 客队水位 )")
         if handicap_data:
@@ -501,7 +489,7 @@ class GameTheoryPromptGenerator:
             for data in handicap_data:
                 prompt_parts.append(self._format_handicap_for_prompt(data))
 
-            prompt_parts.append(self._compare_bookmakers(handicap_data))
+            # prompt_parts.append(self._compare_bookmakers(handicap_data))
         else:
             prompt_parts.append("暂无亚盘数据")
 
@@ -514,45 +502,45 @@ class GameTheoryPromptGenerator:
             for data in odds_data:
                 prompt_parts.append(self._format_european_for_prompt(data))
 
-            prompt_parts.append(self._compare_european_odds(odds_data))
+            # prompt_parts.append(self._compare_european_odds(odds_data))
         else:
             prompt_parts.append("暂无欧赔数据")
 
-        prompt_parts.append("\n" + "=" * 60)
-        prompt_parts.append("## 机构共识分析")
+        # prompt_parts.append("\n" + "=" * 60)
+        # prompt_parts.append("## 机构共识分析")
 
-        if handicap_data:
-            handicaps = []
-            for data in handicap_data:
-                if data.get("odds"):
-                    latest = data["odds"][-1]
-                    converted = self._convert_handicap_to_readable(latest["handicap"])
-                    handicaps.append(converted)
-            if handicaps:
-                from collections import Counter
+        # if handicap_data:
+        #     handicaps = []
+        #     for data in handicap_data:
+        #         if data.get("odds"):
+        #             latest = data["odds"][-1]
+        #             converted = self._convert_handicap_to_readable(latest["handicap"])
+        #             handicaps.append(converted)
+        #     if handicaps:
+        #         from collections import Counter
 
-                most_common = Counter(handicaps).most_common(1)[0]
-                prompt_parts.append(
-                    f"- 主流盘口: {most_common[0]} ({most_common[1]}家一致)"
-                )
-        else:
-            prompt_parts.append("- 亚盘数据不足，无法判断共识")
+        #         most_common = Counter(handicaps).most_common(1)[0]
+        #         prompt_parts.append(
+        #             f"- 主流盘口: {most_common[0]} ({most_common[1]}家一致)"
+        #         )
+        # else:
+        #     prompt_parts.append("- 亚盘数据不足，无法判断共识")
 
-        if odds_data:
-            avg_home = sum(
-                d["odds"][-1]["home"] for d in odds_data if d.get("odds")
-            ) / len(odds_data)
-            avg_draw = sum(
-                d["odds"][-1]["draw"] for d in odds_data if d.get("odds")
-            ) / len(odds_data)
-            avg_away = sum(
-                d["odds"][-1]["away"] for d in odds_data if d.get("odds")
-            ) / len(odds_data)
-            prompt_parts.append(
-                f"- 平均赔率: {avg_home:.2f} | {avg_draw:.2f} | {avg_away:.2f}"
-            )
-        else:
-            prompt_parts.append("- 欧赔数据不足，无法计算平均值")
+        # if odds_data:
+        #     avg_home = sum(
+        #         d["odds"][-1]["home"] for d in odds_data if d.get("odds")
+        #     ) / len(odds_data)
+        #     avg_draw = sum(
+        #         d["odds"][-1]["draw"] for d in odds_data if d.get("odds")
+        #     ) / len(odds_data)
+        #     avg_away = sum(
+        #         d["odds"][-1]["away"] for d in odds_data if d.get("odds")
+        #     ) / len(odds_data)
+        #     prompt_parts.append(
+        #         f"- 平均赔率: {avg_home:.2f} | {avg_draw:.2f} | {avg_away:.2f}"
+        #     )
+        # else:
+        #     prompt_parts.append("- 欧赔数据不足，无法计算平均值")
 
         prompt_parts.append("\n" + "=" * 60)
         prompt_parts.append("## 分析任务")
