@@ -167,8 +167,8 @@ def download_matches(
     download_handicap=True,
     download_odds=True,
     download_overunder=True,
-    delay_between_matches=1,
-    delay_between_types=2,
+    delay_between_matches=0.3,
+    delay_between_types=0.2,
 ):
     """批量下载比赛数据"""
     downloader = DataDownloader(base_path=base_path)
