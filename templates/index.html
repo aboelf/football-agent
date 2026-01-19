@@ -921,9 +921,6 @@
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">分析选项</label>
                                 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                                     <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                        <input type="checkbox" id="ai-include-h2h" checked> 历史交锋
-                                    </label>
-                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
                                         <input type="checkbox" id="ai-include-table" checked> 联赛定位
                                     </label>
                                 </div>
@@ -1706,7 +1703,7 @@
                                     <span style="color: var(--text-secondary)">vs</span>
                                     <span onclick="showAnalysisDetail('${info.match_id}')" style="cursor: pointer;">${info.away_team}</span>
                                 </div>
-                                <span style="font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-card); padding: 4px 8px; border-radius: 4px;">ID: ${info.match_id}</span>
+                                <span onclick="copyMatchIdToClipboard('${info.match_id}')" style="font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-card); padding: 4px 8px; border-radius: 4px; cursor: pointer;" title="点击复制比赛ID">ID: ${info.match_id}</span>
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <div class="match-score">${info.final_score || '未完'}</div>
                                     <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); confirmDeleteAnalysis('${info.match_id}', '${info.home_team} vs ${info.away_team}')">
@@ -1802,11 +1799,22 @@
                     document.getElementById('ai-analysis-card').style.display = 'none';
 
                     await loadOddsData();
+
+                    copyMatchIdToClipboard(matchId);
                 } else {
                     showNotification('未找到该比赛的分析数据', 'error');
                 }
             } catch (error) {
                 showNotification('获取分析数据失败', 'error');
+            }
+        }
+
+        async function copyMatchIdToClipboard(matchId) {
+            try {
+                await navigator.clipboard.writeText(matchId);
+                showNotification(`比赛ID ${matchId} 已复制到剪贴板`, 'success');
+            } catch (error) {
+                console.error('复制失败:', error);
             }
         }
 
@@ -2291,7 +2299,6 @@
             }
 
             const bookmaker = document.getElementById('ai-bookmaker-select').value;
-            const includeH2H = document.getElementById('ai-include-h2h').checked;
             const includeTable = document.getElementById('ai-include-table').checked;
 
             currentAIProvider = document.getElementById('ai-provider-select').value;
@@ -2310,7 +2317,6 @@
                         match_id: currentMatchIdForAI,
                         bookmaker: bookmaker,
                         use_all_bookmakers: bookmaker === 'all',
-                        include_h2h: includeH2H,
                         include_league_table: includeTable
                     })
                 });
