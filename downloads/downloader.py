@@ -113,7 +113,8 @@ class DataDownloader:
 
         try:
             response = self.session.get(url, timeout=30)
-            response.encoding = "utf-8"
+            if response.encoding == "ISO-8859-1":
+                response.encoding = response.apparent_encoding
 
             if response.status_code != 200:
                 return {}
@@ -280,7 +281,8 @@ class DataDownloader:
 
         try:
             response = self.session.get(url, timeout=30)
-            response.encoding = "utf-8"
+            if response.encoding == "ISO-8859-1":
+                response.encoding = response.apparent_encoding
 
             if response.status_code == 200:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -368,7 +370,11 @@ class DataDownloader:
                         browser.close()
                 else:
                     response = self.session.get(url, timeout=30)
-                    response.encoding = "utf-8"
+                    response.encoding = (
+                        response.apparent_encoding
+                        if response.apparent_encoding
+                        else "gbk"
+                    )
                     html_content = response.text
 
                 if html_content:
@@ -454,7 +460,8 @@ class DataDownloader:
 
         try:
             response = self.session.get(url, timeout=30)
-            response.encoding = "utf-8"
+            if response.encoding == "ISO-8859-1":
+                response.encoding = response.apparent_encoding
 
             if response.status_code == 200:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -599,7 +606,8 @@ class DataDownloader:
                     browser.close()
             else:
                 response = self.session.get(url, timeout=30)
-                response.encoding = "utf-8"
+                if response.encoding == "ISO-8859-1":
+                    response.encoding = response.apparent_encoding
                 html_content = response.text
 
             if html_content:
@@ -663,7 +671,8 @@ class DataDownloader:
 
         try:
             response = self.session.get(url, timeout=30)
-            response.encoding = "utf-8"
+            if response.encoding == "ISO-8859-1":
+                response.encoding = response.apparent_encoding
 
             if response.status_code == 200:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
