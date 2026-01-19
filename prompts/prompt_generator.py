@@ -115,7 +115,7 @@ class GameTheoryPromptGenerator:
             return None
 
         html_file = files[0]
-        with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+        with open(html_file, "r", encoding="utf-8", errors="replace") as f:
             html = f.read()
 
         soup = BeautifulSoup(html, "html.parser")
@@ -172,7 +172,7 @@ class GameTheoryPromptGenerator:
             return None
 
         html_file = files[0]
-        with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+        with open(html_file, "r", encoding="utf-8", errors="replace") as f:
             html = f.read()
 
         soup = BeautifulSoup(html, "html.parser")
@@ -564,12 +564,15 @@ class GameTheoryPromptGenerator:
 - 基于联赛排名和积分，主客队的定位差距是多少？
 - 初始亚盘定位是否合理反映了这一差距？
 - 欧赔的平均赔率是否支持这一判断？
-
+- 针对本场比赛做出初步逻辑洞察。
+                            
 ### 步骤2: 庄家共识分析
 - 多家庄家的亚盘盘口是否一致？分歧点在哪里？
 - 欧赔的平均值与各庄家赔率的差异说明了什么？
 - 哪家/哪些庄家的初始定位最值得关注？
-
+- 对比多家庄家的抽水率（Overround）。哪家机构在收紧赔付？                            
+- 计算欧赔几个机构在主/平/客三个维度的标准差。标准差越小，说明机构共识越强（真实防御）；标准差越大，说明机构在利用赔率差进行财务对冲（风险对冲）。
+                            
 ### 步骤3: 博弈假设建立
 观察赔率变化，假设机构的真实意图是什么？
 - **亚盘分析**: 观察澳门、易胜博、Bet365等主要庄家的盘口变化趋势
@@ -590,9 +593,10 @@ class GameTheoryPromptGenerator:
 - 资金归位信号：在盘口不变的情况下，哪一方的水位出现了超过 10% 的剧烈波动？这种波动是属于'顺应市场热度'的派发，还是'逆市操作'的财务防御？
 - 末端欧亚一致性检查：是否存在欧赔（如主胜）在拉升，但亚盘（如主队水位）却在强行压低的现象？这种**'量价背离'**是否代表机构在利用最后的时间差诱骗筹码？
 - 终极利益既得方判定：基于最后5分钟的赔付压力分布，如果比赛以目前水位结束，哪种赛果对机构而言'赔付总额最小'？
-
+- 量价背离检查：是否存在欧赔与亚盘在临场阶段出现明显背离的情况？这种背离是否暗示机构在利用时间差进行最后的财务对冲？
+                            
 ### 步骤6: 辩论环节
-请模拟两名分析师，分析师 A 倾向于主胜，分析师 B 倾向于客胜。请让他们进行辩论。
+请模拟两名顶级博弈论战略顾问兼赔率精算专家，专家A 倾向于冷门，专家B 倾向于热门。请让他们进行辩论。
 
 ### 步骤7: 结论
 给出明确的分析结论:
