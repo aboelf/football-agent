@@ -4,7 +4,7 @@
 功能：读取backtest/data目录下的分析数据，生成博弈论分析prompt
 
 使用方式：
-    python backtest/generate_prompts.py                           # 处理所有比赛
+    python backtest/generate_prompts.py --regen                          # 处理所有比赛
     python backtest/generate_prompts.py --match-id 2789305        # 处理指定比赛
     python backtest/generate_prompts.py --rounds 18               # 处理第18轮
     python backtest/generate_prompts.py --limit 5                 # 限制数量
@@ -147,13 +147,18 @@ def batch_generate(
     output_dir: str,
     match_ids: Optional[List[str]] = None,
     limit: Optional[int] = None,
+    force_regen: bool = False,
 ) -> GenerationStats:
     """批量生成prompt"""
     stats = GenerationStats()
 
     basic_data_dict = load_existing_basic_data(data_dir)
-    if not basic_data_dict:
-        print("未找到basic_data.json，正在从analysis目录生成...")
+    if not basic_data_dict or force_regen:
+        print("正在从analysis目录生成/更新basic_data.json...")
+        basic_data_file = Path(data_dir) / "basic_data.json"
+        if basic_data_file.exists():
+            basic_data_file.unlink()
+            print(f"已删除现有文件: {basic_data_file}")
         basic_data_dict = generate_basic_data(data_dir)
 
     if not basic_data_dict:
@@ -232,6 +237,9 @@ def main():
     # 处理所有比赛
     python backtest/generate_prompts.py
 
+    # 强制重新生成basic_data.json后再生成prompts
+    python backtest/generate_prompts.py --regen
+
     # 处理指定比赛
     python backtest/generate_prompts.py --match-id 2789305
 
@@ -275,6 +283,13 @@ def main():
 
     parser.add_argument("--limit", "-l", type=int, help="限制处理数量")
 
+    parser.add_argument(
+        "--regen",
+        "-R",
+        action="store_true",
+        help="强制重新生成basic_data.json（删除后从HTML重新解析）",
+    )
+
     args = parser.parse_args()
 
     match_ids = None
@@ -293,6 +308,7 @@ def main():
         output_dir=args.output,
         match_ids=match_ids,
         limit=args.limit,
+        force_regen=args.regen,
     )
 
     save_stats(stats, args.output)
