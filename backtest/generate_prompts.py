@@ -95,6 +95,37 @@ def load_existing_basic_data(data_dir: str) -> Dict[str, Dict]:
     return basic_data_dict
 
 
+def generate_basic_data(data_dir: str) -> Dict[str, Dict]:
+    """从analysis目录解析HTML文件，生成basic_data.json"""
+    from parsers.analysis_parser import process_all_analyses
+
+    basic_data_file = Path(data_dir) / "basic_data.json"
+    analysis_dir = Path(data_dir) / "analysis"
+
+    if not analysis_dir.exists():
+        print(f"警告: 分析数据目录不存在: {analysis_dir}")
+        return {}
+
+    basic_data_dict = load_existing_basic_data(data_dir)
+    existing_count = len(basic_data_dict)
+
+    html_files = list(analysis_dir.glob("*.html"))
+    if not html_files:
+        print(f"警告: 目录中无HTML文件: {analysis_dir}")
+        return {}
+
+    print(f"检测到 {len(html_files)} 个分析文件...")
+    if existing_count > 0:
+        print(f"现有basic_data.json包含 {existing_count} 场比赛数据")
+
+    process_all_analyses(str(analysis_dir), str(basic_data_file))
+
+    basic_data_dict = load_existing_basic_data(data_dir)
+    print(f"生成/更新后共 {len(basic_data_dict)} 场比赛的基本面数据")
+
+    return basic_data_dict
+
+
 def generate_single_prompt(
     match_id: str,
     generator: GameTheoryPromptGenerator,
@@ -120,9 +151,14 @@ def batch_generate(
     """批量生成prompt"""
     stats = GenerationStats()
 
-    print("正在加载已有基本面数据...")
     basic_data_dict = load_existing_basic_data(data_dir)
-    print(f"加载到 {len(basic_data_dict)} 场比赛的基本面数据")
+    if not basic_data_dict:
+        print("未找到basic_data.json，正在从analysis目录生成...")
+        basic_data_dict = generate_basic_data(data_dir)
+
+    if not basic_data_dict:
+        print("错误: 无法获取基本面数据")
+        return stats
 
     if match_ids:
         target_match_ids = [mid for mid in match_ids if mid in basic_data_dict]
