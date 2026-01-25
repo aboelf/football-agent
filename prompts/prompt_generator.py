@@ -513,14 +513,28 @@ class GameTheoryPromptGenerator:
 
         return "\n".join(lines)
 
-    def generate(self, match_id: str, config: Optional[PromptConfig] = None) -> str:
+    def generate(
+        self, match_id: str, config: Optional[PromptConfig] = None
+    ) -> tuple[str, str]:
+        """
+        Generate system prompt and user prompt separately.
+
+        Returns:
+            tuple: (system_prompt, user_prompt)
+                - system_prompt: The role definition and analysis steps (JSON format)
+                - user_prompt: The match data and analysis instructions
+        """
         if config is None:
             config = PromptConfig()
 
         data = self._load_match_data(match_id)
         if not data:
-            return f"错误: 找不到比赛 {match_id} 的基本面数据"
+            return "ERROR", f"错误: 找不到比赛 {match_id} 的基本面数据"
 
+        # System prompt is separate from match data
+        system_prompt = self.SYSTEM_PROMPT.strip()
+
+        # Build user prompt with match data only
         info = data.get("match_info", {})
         home_stats = data.get("home_team_full_stats", {})
         away_stats = data.get("away_team_full_stats", {})
@@ -556,9 +570,6 @@ class GameTheoryPromptGenerator:
 
         prompt_parts = []
 
-        prompt_parts.append(self.SYSTEM_PROMPT)
-        prompt_parts.append("\n" + "=" * 60 + "\n")
-
         prompt_parts.append("## 待分析比赛")
         prompt_parts.append(f"**比赛时间**: {info.get('match_time', 'N/A')}")
         prompt_parts.append(
@@ -589,11 +600,6 @@ class GameTheoryPromptGenerator:
             f"- 总战绩: {home_stats.get('wins', 0)}胜 {home_stats.get('draws', 0)}平 {home_stats.get('losses', 0)}负 "
             f"(进{home_stats.get('goals_for', 0)}失{home_stats.get('goals_against', 0)})"
         )
-        # prompt_parts.append(
-        #     f"- 主场战绩: {home_home.get('wins', 0)}胜 {home_home.get('draws', 0)}平 {home_home.get('losses', 0)}负 "
-        #     f"(进{home_home.get('goals_for', 0)}失{home_home.get('goals_against', 0)})"
-        # )
-        # prompt_parts.append(f"- 近10场评分: {info.get('home_recent_ratings', [])}")
 
         prompt_parts.append("\n### 客队")
         prompt_parts.append(
@@ -603,11 +609,6 @@ class GameTheoryPromptGenerator:
             f"- 总战绩: {away_stats.get('wins', 0)}胜 {away_stats.get('draws', 0)}平 {away_stats.get('losses', 0)}负 "
             f"(进{away_stats.get('goals_for', 0)}失{away_stats.get('goals_against', 0)})"
         )
-        # prompt_parts.append(
-        #     f"- 客场战绩: {away_away.get('wins', 0)}胜 {away_away.get('draws', 0)}平 {away_away.get('losses', 0)}负 "
-        #     f"(进{away_away.get('goals_for', 0)}失{away_away.get('goals_against', 0)})"
-        # )
-        # prompt_parts.append(f"- 近10场评分: {info.get('away_recent_ratings', [])}")
 
         prompt_parts.append("\n## 亚盘数据 ( 主队水位 | 盘口 | 客队水位 )")
         if handicap_data:
@@ -617,8 +618,6 @@ class GameTheoryPromptGenerator:
 
             for data in handicap_data:
                 prompt_parts.append(self._format_handicap_for_prompt(data))
-
-            # prompt_parts.append(self._compare_bookmakers(handicap_data))
         else:
             prompt_parts.append("暂无亚盘数据")
 
@@ -630,108 +629,19 @@ class GameTheoryPromptGenerator:
 
             for data in odds_data:
                 prompt_parts.append(self._format_european_for_prompt(data))
-
-            # prompt_parts.append(self._compare_european_odds(odds_data))
         else:
             prompt_parts.append("暂无欧赔数据")
 
-        # prompt_parts.append("\n" + "=" * 60)
-        # prompt_parts.append("## 机构共识分析")
-
-        # if handicap_data:
-        #     handicaps = []
-        #     for data in handicap_data:
-        #         if data.get("odds"):
-        #             latest = data["odds"][-1]
-        #             converted = self._convert_handicap_to_readable(latest["handicap"])
-        #             handicaps.append(converted)
-        #     if handicaps:
-        #         from collections import Counter
-
-        #         most_common = Counter(handicaps).most_common(1)[0]
-        #         prompt_parts.append(
-        #             f"- 主流盘口: {most_common[0]} ({most_common[1]}家一致)"
-        #         )
-        # else:
-        #     prompt_parts.append("- 亚盘数据不足，无法判断共识")
-
-        # if odds_data:
-        #     avg_home = sum(
-        #         d["odds"][-1]["home"] for d in odds_data if d.get("odds")
-        #     ) / len(odds_data)
-        #     avg_draw = sum(
-        #         d["odds"][-1]["draw"] for d in odds_data if d.get("odds")
-        #     ) / len(odds_data)
-        #     avg_away = sum(
-        #         d["odds"][-1]["away"] for d in odds_data if d.get("odds")
-        #     ) / len(odds_data)
-        #     prompt_parts.append(
-        #         f"- 平均赔率: {avg_home:.2f} | {avg_draw:.2f} | {avg_away:.2f}"
-        #     )
-        # else:
-        #     prompt_parts.append("- 欧赔数据不足，无法计算平均值")
-
-#         prompt_parts.append("\n" + "=" * 60)
-#         prompt_parts.append("## 分析任务")
-
-#         prompt_parts.append("""
-# 请按以下步骤进行分析:
-
-# ### 步骤1: 宏观定位与机构初衷判定
-# - 基于排名、积分散差，计算客队在常规逻辑下应有的让步等级。
-# - 初始亚盘定位是否合理反映了这一差距？
-# - 判断初盘是属于**“实力盘”（真诚看好）还是“诱导盘”**（利用名气平衡资金）。
-
-# ### 步骤2: 庄家共识与“异常锚点”扫描
-# - 标准差深度解析:
-#   1、统计多家博彩公司主胜 / 平局 / 客胜赔率的分布情况；
-#   2、计算各结果的离散度指标（如标准差、变异系数）。
-#   3、识别离散度显著最低的结果，结合足彩风险管理逻辑，判断该结果是否为博彩公司重点防守的风险节点，并说明其潜在投注含义。
-# - 哪家/哪些庄家的初始定位最值得关注？
-
-# ### 步骤3: 博弈假设建立
-# 观察赔率变化，假设机构的真实意图是什么？
-# - **亚盘分析**: 观察澳门、易胜博、Bet365等主要庄家的盘口变化趋势
-#   - 如果多数庄家降盘: 可能是在降低赔付风险还是诱下盘？
-#   - 如果多数庄家降水: 是在保护热门方还是诱导投注？
-# - **欧赔分析**: 观察主胜/平局/客胜的赔率变化方向
-#   - 哪一方被持续降低赔付？
-#   - 机构在分散哪一方的风险？
-
-# ### 步骤4: 交叉验证
-# 结合亚盘和欧赔进行交叉验证:
-# - 亚盘的降水/升盘与欧赔的对应变化是否一致？
-# - 是否存在"亚盘诱多但欧赔真实看好"的分歧？
-# - 各庄家的操作是否形成合力还是各有打算？
-
-# ### 步骤5: 监控开赛前30分钟的即时水位异动，以捕捉最终的庄家财务对冲信号
-# 现在进入博弈逻辑的最后环节：【临场财务对冲监控】。请分析开赛前30分钟的即时数据，重点回答以下三个核心问题：
-# - 资金归位信号：在盘口不变的情况下，哪一方的水位出现了超过 10% 的剧烈波动？这种波动是属于'顺应市场热度'的派发，还是'逆市操作'的财务防御？
-# - 末端欧亚一致性检查：是否存在欧赔（如主胜）在拉升，但亚盘（如主队水位）却在强行压低的现象？这种**'量价背离'**是否代表机构在利用最后的时间差诱骗筹码？
-# - 终极利益既得方判定：基于最后5分钟的赔付压力分布，如果比赛以目前水位结束，哪种赛果对机构而言'赔付总额最小'？
-
-# ### 步骤6: 辩论环节
-# 请模拟两名分析师，分析师 A 倾向于主胜，分析师 B 倾向于客胜。请让他们进行辩论。
-
-# ### 步骤7: 结论
-# 给出明确的分析结论:
-# - **推荐选项**: 主胜 / 客胜 / 不让球平局
-# - **盘口建议**: 对应的亚盘选择
-# - **市场陷阱**: 指出机构可能设置的诱盘陷阱
-# - **置信度**: 高 / 中 / 低
-
-# 请开始分析，重点关注亚盘变化趋势的同时，参考欧赔数据进行交叉验证。
-# """)
-
-        return "\n".join(prompt_parts)
+        user_prompt = "\n".join(prompt_parts)
+        return system_prompt, user_prompt
 
     def save_to_file(
         self, match_id: str, output_path: str, config: Optional[PromptConfig] = None
-    ) -> str:
-        prompt = self.generate(match_id, config)
+    ) -> tuple[str, str]:
+        system_prompt, user_prompt = self.generate(match_id, config)
         with open(output_path, "w", encoding="utf-8") as f:
-            f.write(prompt)
-        return prompt
+            f.write(user_prompt)
+        return system_prompt, user_prompt
 
 
 def main():
@@ -744,7 +654,7 @@ def main():
     match_id = "2789331"
 
     print(f"为比赛 {match_id} 生成Prompt (使用全部庄家)...")
-    prompt = generator.generate(match_id, config)
+    system_prompt, user_prompt = generator.generate(match_id, config)
 
     output_path = f"prompts/{match_id}_multi_bookmaker_prompt.txt"
     Path(output_path).parent.mkdir(exist_ok=True)
@@ -752,9 +662,9 @@ def main():
     print(f"已保存到: {output_path}")
 
     print("\n" + "=" * 60)
-    print("Prompt预览 (前80行):")
+    print("User Prompt预览 (前80行):")
     print("=" * 60)
-    for i, line in enumerate(prompt.split("\n")[:80]):
+    for i, line in enumerate(user_prompt.split("\n")[:80]):
         print(line)
 
 
