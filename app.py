@@ -92,6 +92,158 @@ AI_PROVIDERS = {
 }
 
 
+def call_ai_analyze(
+    prompt: str,
+    model: str,
+    match_id: str = "unknown",
+    provider: str = "local-gemini",
+    messages: list | None = None,
+) -> dict:
+    """
+    调用AI进行博弈论分析（可复用的核心函数）
+
+    Args:
+        prompt: 用户提示内容
+        model: 使用的模型名称
+        match_id: 比赛ID（用于保存结果）
+        provider: AI提供商（默认 local-gemini）
+        messages: 消息历史（支持多轮对话）
+
+    Returns:
+        dict: {"success": bool, "data": {"response": str}, "error": str}
+    """
+    import httpx
+
+    messages = messages or []
+
+    if not prompt and not messages:
+        return {"success": False, "error": "缺少分析内容"}
+
+    if provider not in AI_PROVIDERS:
+        return {"success": False, "error": f"不支持的AI提供商: {provider}"}
+
+    provider_config = AI_PROVIDERS[provider]
+    if model not in provider_config["models"]:
+        return {"success": False, "error": f"不支持的模型: {model}"}
+
+    model_config = provider_config["models"][model]
+    api_key = os.environ.get(model_config["api_key_env"])
+
+    if not api_key:
+        return {
+            "success": False,
+            "error": f"未配置{model_config['api_key_env']}环境变量",
+        }
+
+    system_prompt = "你是一位精通博弈论的足彩分析专家，请根据提供的比赛数据和赔率信息进行专业的博弈论分析。分析要逻辑清晰，有理有据。"
+
+    try:
+        client = httpx.Client(timeout=300.0)
+
+        if provider == "minimax":
+            # MiniMax implementation
+            response = client.post(
+                model_config["endpoint"],
+                headers={
+                    "x-api-key": api_key,
+                    "Content-Type": "application/json",
+                    "Anthropic-Version": "2023-06-01",
+                },
+                json={
+                    "model": "MiniMax-M2.1",
+                    "max_tokens": model_config["max_tokens"],
+                    "temperature": model_config["temperature"],
+                    "system": system_prompt,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        }
+                    ],
+                },
+                timeout=300.0,
+            )
+
+            if response.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"MiniMax API错误 (状态码 {response.status_code})",
+                }
+
+            result = response.json()
+
+            if "content" in result:
+                ai_response = ""
+                for block in result["content"]:
+                    if block.get("type") == "text":
+                        ai_response += block.get("text", "")
+                    elif block.get("type") == "thinking":
+                        ai_response += (
+                            f"\n\n[思考过程]\n{block.get('thinking', '')}"
+                            if block.get("thinking")
+                            else ""
+                        )
+
+                # 保存结果
+                save_ai_result(match_id, model, ai_response)
+                return {"success": True, "data": {"response": ai_response}}
+            else:
+                return {"success": False, "error": "AI返回格式未知"}
+
+        else:
+            # OpenAI-compatible API (local-gemini) - 支持多轮对话
+            request_messages = []
+
+            # 添加系统提示
+            request_messages.append({"role": "system", "content": system_prompt})
+
+            # 如果有历史消息，添加到请求中
+            if messages:
+                for msg in messages:
+                    request_messages.append(msg)
+
+            # 如果有新的用户提示且不在历史消息中，添加到末尾
+            if prompt:
+                if (
+                    not messages
+                    or messages[-1].get("content") != prompt
+                    or messages[-1].get("role") != "user"
+                ):
+                    request_messages.append({"role": "user", "content": prompt})
+
+            response = client.post(
+                model_config["endpoint"],
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": request_messages,
+                    "temperature": model_config["temperature"],
+                    "max_tokens": model_config["max_tokens"],
+                },
+                timeout=300.0,
+            )
+
+            result = response.json()
+
+            if "choices" in result:
+                ai_response = result["choices"][0]["message"]["content"]
+
+                # 保存结果
+                save_ai_result(match_id, model, ai_response)
+                return {"success": True, "data": {"response": ai_response}}
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("error", {}).get("message", "AI调用失败"),
+                }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @app.route("/")
 def index():
     """主页"""
@@ -646,8 +798,6 @@ def generate_prompt():
 def ai_analyze():
     """调用AI进行博弈论分析"""
     try:
-        import httpx
-
         data = request.get_json()
         prompt = data.get("prompt")
         provider = data.get("provider", "local-gemini")
@@ -659,147 +809,20 @@ def ai_analyze():
             f"[AI分析] 收到请求: match_id={match_id}, model={model}, provider={provider}, messages_count={len(messages)}"
         )
 
-        if not prompt and not messages:
-            return jsonify({"success": False, "error": "缺少分析内容"})
+        result = call_ai_analyze(
+            prompt=prompt,
+            model=model,
+            match_id=match_id,
+            provider=provider,
+            messages=messages if messages else None,
+        )
 
-        if provider not in AI_PROVIDERS:
-            return jsonify({"success": False, "error": f"不支持的AI提供商: {provider}"})
-
-        provider_config = AI_PROVIDERS[provider]
-        if model not in provider_config["models"]:
-            return jsonify({"success": False, "error": f"不支持的模型: {model}"})
-
-        model_config = provider_config["models"][model]
-        api_key = os.environ.get(model_config["api_key_env"])
-
-        if not api_key:
+        if result.get("success"):
             return jsonify(
-                {
-                    "success": False,
-                    "error": f"未配置{model_config['api_key_env']}环境变量",
-                }
+                {"success": True, "data": {"response": result["data"]["response"]}}
             )
-
-        system_prompt = "你是一位精通博弈论的足彩分析专家，请根据提供的比赛数据和赔率信息进行专业的博弈论分析。分析要逻辑清晰，有理有据。"
-
-        client = httpx.Client(timeout=300.0)
-
-        if provider == "minimax":
-            # MiniMax implementation remains single-turn for now
-            response = client.post(
-                model_config["endpoint"],
-                headers={
-                    "x-api-key": api_key,
-                    "Content-Type": "application/json",
-                    "Anthropic-Version": "2023-06-01",
-                },
-                json={
-                    "model": "MiniMax-M2.1",
-                    "max_tokens": model_config["max_tokens"],
-                    "temperature": model_config["temperature"],
-                    "system": system_prompt,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt,
-                        }
-                    ],
-                },
-                timeout=300.0,
-            )
-
-            if response.status_code != 200:
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": f"MiniMax API错误 (状态码 {response.status_code})",
-                    }
-                )
-
-            result = response.json()
-
-            if "content" in result:
-                ai_response = ""
-                for block in result["content"]:
-                    if block.get("type") == "text":
-                        ai_response += block.get("text", "")
-                    elif block.get("type") == "thinking":
-                        ai_response += (
-                            f"\n\n[思考过程]\n{block.get('thinking', '')}"
-                            if block.get("thinking")
-                            else ""
-                        )
-
-                print(
-                    f"[AI分析] MiniMax 原始返回内容:\n{ai_response[:500]}..."
-                    if len(ai_response) > 500
-                    else f"[AI分析] MiniMax 原始返回内容:\n{ai_response}"
-                )
-                return jsonify({"success": True, "data": {"response": ai_response}})
-            else:
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": "AI返回格式未知",
-                    }
-                )
         else:
-            # OpenAI-compatible API (local-gemini) - 支持多轮对话
-            request_messages = []
-
-            # 添加系统提示
-            request_messages.append({"role": "system", "content": system_prompt})
-
-            # 如果有历史消息，添加到请求中
-            if messages:
-                for msg in messages:
-                    request_messages.append(msg)
-
-            # 如果有新的用户提示且不在历史消息中，添加到末尾
-            if prompt:
-                # 检查最后一条消息是否已经是这个prompt
-                if (
-                    not messages
-                    or messages[-1].get("content") != prompt
-                    or messages[-1].get("role") != "user"
-                ):
-                    request_messages.append({"role": "user", "content": prompt})
-
-            print(f"[AI分析] 发送消息数量: {len(request_messages)}")
-
-            response = client.post(
-                model_config["endpoint"],
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": request_messages,
-                    "temperature": model_config["temperature"],
-                    "max_tokens": model_config["max_tokens"],
-                },
-                timeout=300.0,
-            )
-
-            result = response.json()
-
-            if "choices" in result:
-                ai_response = result["choices"][0]["message"]["content"]
-                print(f"[AI分析] 原始返回结果长度: {len(ai_response)} 字符")
-                print(
-                    f"[AI分析] 原始返回内容:\n{ai_response[:500]}..."
-                    if len(ai_response) > 500
-                    else f"[AI分析] 原始返回内容:\n{ai_response}"
-                )
-                return jsonify({"success": True, "data": {"response": ai_response}})
-            else:
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": result.get("error", {}).get("message", "AI调用失败"),
-                    }
-                )
+            return jsonify({"success": False, "error": result.get("error", "未知错误")})
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
