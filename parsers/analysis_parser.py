@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict, field
+from bs4 import BeautifulSoup
 
 
 @dataclass
@@ -52,6 +53,39 @@ class MatchRecord:
 
 
 @dataclass
+class GoalTimeStats:
+    """进球时间统计数据"""
+
+    time_periods: List[str] = field(
+        default_factory=lambda: [
+            "1-10",
+            "11-20",
+            "21-30",
+            "31-40",
+            "41-45",
+            "46-50",
+            "51-60",
+            "61-70",
+            "71-80",
+            "81-90+",
+        ]
+    )
+    total: List[int] = field(default_factory=list)  # 10个时间段的总进球数
+    home: List[int] = field(default_factory=list)  # 主队进球数
+    away: List[int] = field(default_factory=list)  # 客队进球数
+
+
+@dataclass
+class GoalTimingData:
+    """完整的进球时间数据"""
+
+    goals_for: GoalTimeStats = field(default_factory=GoalTimeStats)  # 进球时间
+    first_goal_for: GoalTimeStats = field(default_factory=GoalTimeStats)  # 首个进球
+    goals_against: GoalTimeStats = field(default_factory=GoalTimeStats)  # 失球时间
+    first_goal_against: GoalTimeStats = field(default_factory=GoalTimeStats)  # 首个失球
+
+
+@dataclass
 class BasicData:
     match_info: MatchBasicInfo
     home_team_full_stats: TeamStats
@@ -62,6 +96,7 @@ class BasicData:
     recent_matches_away: List[MatchRecord]
     h2h_records: List[MatchRecord]
     league_table: List[Dict]
+    goal_timing: Optional[GoalTimingData] = None  # 进球时间统计数据
 
 
 def parse_js_array_manual(js_array: str) -> List[List]:
@@ -415,6 +450,112 @@ def parse_match_record(record_list: List) -> List[MatchRecord]:
     return records
 
 
+def _parse_goal_time_row(row_text: str) -> List[int]:
+    """解析进球时间表格的一行数据"""
+    numbers = re.findall(r"<td[^>]*>(\d+)</td>", row_text)
+    return [int(n) for n in numbers[:10]]  # 只取前10个时间段
+
+
+def extract_goal_timing_data(html: str) -> Optional[GoalTimingData]:
+    """从HTML中提取进球时间统计数据"""
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+
+        # 定位进球时间模块
+        goal_timing_div = soup.find("div", id="porlet_19")
+        if not goal_timing_div:
+            return None
+
+        # 查找所有表格
+        tables = goal_timing_div.find_all("table")
+        if len(tables) < 2:
+            return None
+
+        # 时间段
+        time_periods = [
+            "1-10",
+            "11-20",
+            "21-30",
+            "31-40",
+            "41-45",
+            "46-50",
+            "51-60",
+            "61-70",
+            "71-80",
+            "81-90+",
+        ]
+
+        def parse_table_rows(table):
+            """解析表格的所有数据行"""
+            rows = table.find_all("tr")
+            data = {}
+            for row in rows:
+                cells = row.find_all("td")
+                if len(cells) >= 11:
+                    label = cells[0].get_text(strip=True)
+                    if label in ["总", "主", "客"]:
+                        numbers = [int(c.get_text(strip=True)) for c in cells[1:11]]
+                        data[label] = numbers
+            return data
+
+        # 左侧第一张表：进球时间分布
+        left_table1 = tables[0]
+        left_data1 = parse_table_rows(left_table1)
+
+        # 左侧第二张表：首个进球时间
+        left_table2 = tables[1] if len(tables) > 1 else None
+        left_data2 = parse_table_rows(left_table2) if left_table2 else {}
+
+        # 右侧第一张表：失球时间分布
+        right_table1 = tables[2] if len(tables) > 2 else None
+        right_data1 = parse_table_rows(right_table1) if right_table1 else {}
+
+        # 右侧第二张表：首个失球时间
+        right_table2 = tables[3] if len(tables) > 3 else None
+        right_data2 = parse_table_rows(right_table2) if right_table2 else {}
+
+        # 验证数据完整性
+        if not left_data1.get("总"):
+            return None
+
+        # 构建数据对象
+        goal_timing = GoalTimingData(
+            goals_for=GoalTimeStats(
+                time_periods=time_periods,
+                total=left_data1.get("总", []),
+                home=left_data1.get("主", []),
+                away=left_data1.get("客", []),
+            ),
+            first_goal_for=GoalTimeStats(
+                time_periods=time_periods,
+                total=left_data2.get("总", []),
+                home=left_data2.get("主", []),
+                away=left_data2.get("客", []),
+            ),
+            goals_against=GoalTimeStats(
+                time_periods=time_periods,
+                total=right_data1.get("总", []),
+                home=right_data1.get("主", []),
+                away=right_data1.get("客", []),
+            ),
+            first_goal_against=GoalTimeStats(
+                time_periods=time_periods,
+                total=right_data2.get("总", []),
+                home=right_data2.get("主", []),
+                away=right_data2.get("客", []),
+            ),
+        )
+
+        return goal_timing
+
+    except Exception as e:
+        print(f"解析进球时间数据失败: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return None
+
+
 def parse_html_basic_data(html_path: str) -> BasicData:
     with open(html_path, "r", encoding="utf-8") as f:
         html_content = f.read()
@@ -464,6 +605,9 @@ def parse_html_basic_data(html_path: str) -> BasicData:
                     }
                 )
 
+    # 解析进球时间数据
+    goal_timing_data = extract_goal_timing_data(html_content)
+
     return BasicData(
         match_info=match_info,
         home_team_full_stats=home_stats.get(
@@ -482,6 +626,7 @@ def parse_html_basic_data(html_path: str) -> BasicData:
         recent_matches_away=away_matches,
         h2h_records=h2h_records,
         league_table=league_table,
+        goal_timing=goal_timing_data,
     )
 
 

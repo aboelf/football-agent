@@ -564,6 +564,66 @@ class GameTheoryPromptGenerator:
 
         return "\n".join(lines)
 
+    def _format_goal_timing_for_prompt(self, goal_timing: dict) -> str:
+        """将进球时间数据格式化为prompt文本"""
+        lines = ["\n## 进球时间统计"]
+
+        # 进球时间分布
+        goals_for = goal_timing.get("goals_for", {})
+        if goals_for and goals_for.get("total"):
+            lines.append("### 进球时间分布")
+            periods = goals_for.get("time_periods", [])
+            lines.append(f"**时间段**: {', '.join(periods)}")
+            lines.append(
+                f"**总进球**: {', '.join(map(str, goals_for.get('total', [])))}"
+            )
+            lines.append(
+                f"**主队进球**: {', '.join(map(str, goals_for.get('home', [])))}"
+            )
+            lines.append(
+                f"**客队进球**: {', '.join(map(str, goals_for.get('away', [])))}"
+            )
+
+        # 首个进球时间
+        first_goal = goal_timing.get("first_goal_for", {})
+        if first_goal and first_goal.get("total"):
+            lines.append("\n### 首个进球时间分布")
+            lines.append(
+                f"**总进球**: {', '.join(map(str, first_goal.get('total', [])))}"
+            )
+            lines.append(f"**主队**: {', '.join(map(str, first_goal.get('home', [])))}")
+            lines.append(f"**客队**: {', '.join(map(str, first_goal.get('away', [])))}")
+
+        # 失球时间分布
+        goals_against = goal_timing.get("goals_against", {})
+        if goals_against and goals_against.get("total"):
+            lines.append("\n### 失球时间分布")
+            lines.append(
+                f"**总失球**: {', '.join(map(str, goals_against.get('total', [])))}"
+            )
+            lines.append(
+                f"**主队失球**: {', '.join(map(str, goals_against.get('home', [])))}"
+            )
+            lines.append(
+                f"**客队失球**: {', '.join(map(str, goals_against.get('away', [])))}"
+            )
+
+        # 首个失球时间
+        first_against = goal_timing.get("first_goal_against", {})
+        if first_against and first_against.get("total"):
+            lines.append("\n### 首个失球时间分布")
+            lines.append(
+                f"**总失球**: {', '.join(map(str, first_against.get('total', [])))}"
+            )
+            lines.append(
+                f"**主队**: {', '.join(map(str, first_against.get('home', [])))}"
+            )
+            lines.append(
+                f"**客队**: {', '.join(map(str, first_against.get('away', [])))}"
+            )
+
+        return "\n".join(lines)
+
     def _compare_bookmakers(self, handicap_data: List[dict]) -> str:
         if not handicap_data or len(handicap_data) < 2:
             return ""
@@ -763,8 +823,8 @@ class GameTheoryPromptGenerator:
                 f"共{len(handicap_data)}家庄家: {', '.join(d['name'] for d in handicap_data)}"
             )
 
-            for data in handicap_data:
-                prompt_parts.append(self._format_handicap_for_prompt(data))
+            for entry in handicap_data:
+                prompt_parts.append(self._format_handicap_for_prompt(entry))
         else:
             prompt_parts.append("暂无亚盘数据")
 
@@ -774,8 +834,8 @@ class GameTheoryPromptGenerator:
                 f"共{len(odds_data)}家庄家: {', '.join(d['name'] for d in odds_data)}"
             )
 
-            for data in odds_data:
-                prompt_parts.append(self._format_european_for_prompt(data))
+            for entry in odds_data:
+                prompt_parts.append(self._format_european_for_prompt(entry))
         else:
             prompt_parts.append("暂无欧赔数据")
 
@@ -785,10 +845,15 @@ class GameTheoryPromptGenerator:
                 f"共{len(overunder_data)}家庄家: {', '.join(d['name'] for d in overunder_data)}"
             )
 
-            for data in overunder_data:
-                prompt_parts.append(self._format_overunder_for_prompt(data))
+            for odds_entry in overunder_data:
+                prompt_parts.append(self._format_overunder_for_prompt(odds_entry))
         else:
             prompt_parts.append("暂无大小球数据")
+
+        # 添加进球时间统计
+        goal_timing = data.get("goal_timing")
+        if goal_timing:
+            prompt_parts.append(self._format_goal_timing_for_prompt(goal_timing))
 
         user_prompt = "\n".join(prompt_parts)
         return system_prompt, user_prompt
