@@ -129,17 +129,21 @@ def generate_basic_data(data_dir: str) -> Dict[str, Dict]:
 def generate_single_prompt(
     match_id: str,
     generator: GameTheoryPromptGenerator,
-) -> Optional[str]:
-    """为单个比赛生成prompt"""
+) -> tuple[Optional[str], Optional[str]]:
+    """为单个比赛生成prompt
+
+    Returns:
+        tuple: (system_prompt, user_prompt) or (None, None) on error
+    """
     try:
-        prompt = generator.generate(match_id)
-        return prompt
+        system_prompt, user_prompt = generator.generate(match_id)
+        return system_prompt, user_prompt
     except Exception as e:
         print(f"  错误: {e}")
         import traceback
 
         traceback.print_exc()
-        return None
+        return None, None
 
 
 def batch_generate(
@@ -187,13 +191,13 @@ def batch_generate(
             f"[{i}/{stats.total}] {home_team} vs {away_team} ({match_id})...", end=" "
         )
 
-        prompt = generate_single_prompt(match_id, generator)
+        system_prompt, user_prompt = generate_single_prompt(match_id, generator)
 
-        if prompt:
+        if user_prompt:
             os.makedirs(output_dir, exist_ok=True)
             output_file = os.path.join(output_dir, f"{match_id}_prompt.txt")
             with open(output_file, "w", encoding="utf-8") as f:
-                f.write(prompt)
+                f.write(user_prompt)
             print(f"✓")
             stats.success += 1
         else:
