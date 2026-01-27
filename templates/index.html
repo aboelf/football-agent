@@ -897,7 +897,8 @@
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">AI 提供商</label>
                                 <select id="ai-provider-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;" onchange="updateModelOptions()">
                                     <option value="minimax">MiniMax</option>
-                                    <option value="local-gemini" selected>本地 Gemini (兼容OpenAI)</option>
+                                    <option value="local-gemini">本地 Gemini (兼容OpenAI)</option>
+                                    <option value="gemini">Google Gemini (官方API)</option>
                                 </select>
                             </div>
                             <div style="margin-bottom: 16px;">
@@ -1041,7 +1042,9 @@
         let pendingMatchId = null;
         let currentMatchIdForOdds = null;
         let currentMatchIdForAI = null;
-        let fullPromptText = '';
+        let fullSystemPromptText = '';
+        let fullUserPromptText = '';
+        let fullPromptText = '';  // Combined prompt for backward compatibility
         let fullAIResultText = '';
         let currentAIResultData = null;
         let conversationMessages = [];
@@ -2247,12 +2250,13 @@
                     const promptRes = await fetch(`/api/ai/prompts/${matchId}`);
                     const promptData = await promptRes.json();
                     if (promptData.success && promptData.data && promptData.data.content) {
-                        fullPromptText = promptData.data.content;
-                        document.getElementById('ai-prompt-preview').textContent = fullPromptText.substring(0, 500) + '...';
+                        fullUserPromptText = promptData.data.content;
+                        fullPromptText = fullUserPromptText;
+                        document.getElementById('ai-prompt-preview').textContent = fullUserPromptText.substring(0, 500) + '...';
                     }
 
                     conversationMessages = [
-                        { role: 'user', content: fullPromptText },
+                        { role: 'user', content: fullUserPromptText || fullPromptText },
                         { role: 'assistant', content: fullAIResultText }
                     ];
                     renderChatMessages();
@@ -2323,11 +2327,13 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    fullPromptText = data.data.prompt;
+                    fullSystemPromptText = data.data.system_prompt || '';
+                    fullUserPromptText = data.data.user_prompt || '';
+                    fullPromptText = fullUserPromptText;  // For display purposes
                     const matchIdFromApi = data.data.match_id || currentMatchIdForAI || 'unknown';
 
                     document.getElementById('ai-prompt-preview').style.display = 'block';
-                    document.getElementById('ai-prompt-preview').textContent = fullPromptText.substring(0, 500) + '...';
+                    document.getElementById('ai-prompt-preview').textContent = fullUserPromptText.substring(0, 500) + '...';
                     document.getElementById('toggle-prompt-btn').textContent = '显示完整';
 
                     document.getElementById('ai-loading-section').style.display = 'block';
@@ -2336,7 +2342,7 @@
                     document.getElementById('ai-chat-section').style.display = 'block';
                     document.getElementById('chat-messages').innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 40px;">AI 分析中...</div>';
 
-                    callAIAnalysis(fullPromptText, matchIdFromApi);
+                    callAIAnalysis(fullSystemPromptText, fullUserPromptText, matchIdFromApi);
                 } else {
                     showNotification(data.error || '生成Prompt失败', 'error');
                     resetAIAnalysis();
@@ -2347,7 +2353,7 @@
             }
         }
 
-        async function callAIAnalysis(promptText, matchId) {
+        async function callAIAnalysis(systemPrompt, userPrompt, matchId) {
             const finalMatchId = matchId || currentMatchIdForAI || 'unknown';
 
             try {
@@ -2355,7 +2361,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        prompt: promptText,
+                        system_prompt: systemPrompt,
+                        user_prompt: userPrompt,
                         provider: currentAIProvider,
                         model: currentAIModel,
                         match_id: finalMatchId,
@@ -2370,7 +2377,7 @@
                 if (data.success) {
                     fullAIResultText = data.data.response;
 
-                    conversationMessages.push({ role: 'user', content: promptText });
+                    conversationMessages.push({ role: 'user', content: userPrompt });
                     conversationMessages.push({ role: 'assistant', content: fullAIResultText });
 
                     renderChatMessages();
@@ -2399,7 +2406,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        prompt: message,
+                        system_prompt: fullSystemPromptText,
+                        user_prompt: message,
                         provider: currentAIProvider,
                         model: currentAIModel,
                         match_id: currentMatchIdForAI || 'unknown',
@@ -2434,6 +2442,9 @@
         function startNewAnalysis() {
             currentAIResultData = null;
             conversationMessages = [];
+            fullSystemPromptText = '';
+            fullUserPromptText = '';
+            fullPromptText = '';
             resetAIAnalysis();
         }
 
@@ -2445,6 +2456,12 @@
                 { value: 'gemini-3.0-flash', text: 'Gemini 3.0 Flash' },
                 { value: 'gemini-3.0-pro', text: 'Gemini 3.0 Pro' },
                 { value: 'gemini-3.0-flash-thinking', text: 'Gemini 3.0 Flash (Thinking)' }
+            ],
+            'gemini': [
+                { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash' },
+                { value: 'gemini-2.5-pro', text: 'Gemini 2.5 Pro' },
+                { value: 'gemini-1.5-flash', text: 'Gemini 1.5 Flash' },
+                { value: 'gemini-1.5-pro', text: 'Gemini 1.5 Pro' }
             ]
         };
 

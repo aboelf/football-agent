@@ -19,6 +19,11 @@ os.environ.setdefault(
     "sk-geminixxxxx",
 )
 
+os.environ.setdefault(
+    "GOOGLE_API_KEY",
+    "AIzaSyBvaTLNyHlB58i3VyQLp8a9kEuoRbjsczY",
+)
+
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
 # 初始化下载器
@@ -89,11 +94,41 @@ AI_PROVIDERS = {
             },
         },
     },
+    "gemini": {
+        "name": "Google Gemini (官方API)",
+        "models": {
+            "gemini-2.5-flash": {
+                "name": "Gemini 2.5 Flash",
+                "api_key_env": "GOOGLE_API_KEY",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            },
+            "gemini-2.5-pro": {
+                "name": "Gemini 2.5 Pro",
+                "api_key_env": "GOOGLE_API_KEY",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            },
+            "gemini-1.5-flash": {
+                "name": "Gemini 1.5 Flash",
+                "api_key_env": "GOOGLE_API_KEY",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            },
+            "gemini-1.5-pro": {
+                "name": "Gemini 1.5 Pro",
+                "api_key_env": "GOOGLE_API_KEY",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            },
+        },
+    },
 }
 
 
 def call_ai_analyze(
-    prompt: str,
+    system_prompt: str,
+    user_prompt: str,
     model: str,
     match_id: str = "unknown",
     provider: str = "local-gemini",
@@ -103,7 +138,8 @@ def call_ai_analyze(
     调用AI进行博弈论分析（可复用的核心函数）
 
     Args:
-        prompt: 用户提示内容
+        system_prompt: 系统提示词（角色定义和任务说明）
+        user_prompt: 用户提示词（比赛数据和分析请求）
         model: 使用的模型名称
         match_id: 比赛ID（用于保存结果）
         provider: AI提供商（默认 local-gemini）
@@ -116,7 +152,7 @@ def call_ai_analyze(
 
     messages = messages or []
 
-    if not prompt and not messages:
+    if not user_prompt and not messages:
         return {"success": False, "error": "缺少分析内容"}
 
     if provider not in AI_PROVIDERS:
@@ -134,8 +170,6 @@ def call_ai_analyze(
             "success": False,
             "error": f"未配置{model_config['api_key_env']}环境变量",
         }
-
-    system_prompt = "你是一位精通博弈论的足彩分析专家，请根据提供的比赛数据和赔率信息进行专业的博弈论分析。分析要逻辑清晰，有理有据。"
 
     try:
         client = httpx.Client(timeout=300.0)
@@ -157,7 +191,7 @@ def call_ai_analyze(
                     "messages": [
                         {
                             "role": "user",
-                            "content": prompt,
+                            "content": user_prompt,
                         }
                     ],
                 },
@@ -190,6 +224,72 @@ def call_ai_analyze(
             else:
                 return {"success": False, "error": "AI返回格式未知"}
 
+        elif provider == "gemini":
+            # Google GenAI SDK implementation
+            from google import genai
+            from google.genai import types
+
+            client = genai.Client(api_key=api_key)
+
+            # 构建消息内容
+            if messages:
+                # 多轮对话
+                contents = []
+                for msg in messages:
+                    role = msg.get("role", "user")
+                    # Google API only supports 'user' and 'model' roles
+                    if role == "system":
+                        # 系统提示作为配置
+                        system_instruction = msg.get("content", "")
+                    else:
+                        contents.append(
+                            types.Content(
+                                role=role,
+                                parts=[types.Part.from_text(msg.get("content", ""))],
+                            )
+                        )
+
+                # 添加当前用户消息
+                if user_prompt:
+                    contents.append(
+                        types.Content(
+                            role="user", parts=[types.Part.from_text(user_prompt)]
+                        )
+                    )
+
+                # 构建配置
+                config_params = {
+                    "temperature": model_config.get("temperature", 0.7),
+                    "max_output_tokens": model_config.get("max_tokens", 4096),
+                }
+                if "system_instruction" in dir() or locals().get("system_instruction"):
+                    config_params["system_instruction"] = locals().get(
+                        "system_instruction", system_prompt
+                    )
+
+                response = client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(**config_params),
+                )
+            else:
+                # 单轮对话
+                response = client.models.generate_content(
+                    model=model,
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        temperature=model_config.get("temperature", 0.7),
+                        max_output_tokens=model_config.get("max_tokens", 4096),
+                    ),
+                )
+
+            ai_response = response.text
+
+            # 保存结果
+            save_ai_result(match_id, model, ai_response)
+            return {"success": True, "data": {"response": ai_response}}
+
         else:
             # OpenAI-compatible API (local-gemini) - 支持多轮对话
             request_messages = []
@@ -203,13 +303,13 @@ def call_ai_analyze(
                     request_messages.append(msg)
 
             # 如果有新的用户提示且不在历史消息中，添加到末尾
-            if prompt:
+            if user_prompt:
                 if (
                     not messages
-                    or messages[-1].get("content") != prompt
+                    or messages[-1].get("content") != user_prompt
                     or messages[-1].get("role") != "user"
                 ):
-                    request_messages.append({"role": "user", "content": prompt})
+                    request_messages.append({"role": "user", "content": user_prompt})
 
             response = client.post(
                 model_config["endpoint"],
@@ -764,9 +864,9 @@ def generate_prompt():
         )
 
         generator = GameTheoryPromptGenerator("./data")
-        prompt = generator.generate(match_id, config)
+        system_prompt, user_prompt = generator.generate(match_id, config)
 
-        if "No basic data found" in prompt:
+        if "No basic data found" in user_prompt or "错误" in user_prompt:
             return jsonify(
                 {
                     "success": False,
@@ -778,13 +878,14 @@ def generate_prompt():
         output_path = f"prompts/save/{match_id}_{source_type}_prompt.txt"
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
-            f.write(prompt)
+            f.write(user_prompt)
 
         return jsonify(
             {
                 "success": True,
                 "data": {
-                    "prompt": prompt,
+                    "system_prompt": system_prompt,
+                    "user_prompt": user_prompt,
                     "saved_to": output_path,
                     "match_id": match_id,
                 },
@@ -799,7 +900,8 @@ def ai_analyze():
     """调用AI进行博弈论分析"""
     try:
         data = request.get_json()
-        prompt = data.get("prompt")
+        system_prompt = data.get("system_prompt", "")
+        user_prompt = data.get("user_prompt", "")
         provider = data.get("provider", "local-gemini")
         model = data.get("model", "gemini-3.0-flash")
         match_id = data.get("match_id", "unknown")
@@ -810,7 +912,8 @@ def ai_analyze():
         )
 
         result = call_ai_analyze(
-            prompt=prompt,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
             model=model,
             match_id=match_id,
             provider=provider,
