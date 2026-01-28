@@ -6,6 +6,8 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict, field
 from bs4 import BeautifulSoup
 
+# python -m parsers.analysis_parser  重新生成basic_data.json
+
 
 @dataclass
 class MatchBasicInfo:
@@ -86,6 +88,19 @@ class GoalTimingData:
 
 
 @dataclass
+class RecentRecord:
+    """近期战绩统计"""
+
+    label: str  # 如 "近6"
+    matches: int  # 场次
+    wins: int  # 胜
+    draws: int  # 平
+    losses: int  # 负
+    goals_for: int  # 进球
+    goals_against: int  # 失球
+
+
+@dataclass
 class BasicData:
     match_info: MatchBasicInfo
     home_team_full_stats: TeamStats
@@ -96,6 +111,8 @@ class BasicData:
     recent_matches_away: List[MatchRecord]
     h2h_records: List[MatchRecord]
     league_table: List[Dict]
+    home_recent_6: Optional[RecentRecord] = None  # 主队近6场统计
+    away_recent_6: Optional[RecentRecord] = None  # 客队近6场统计
     goal_timing: Optional[GoalTimingData] = None  # 进球时间统计数据
 
 
@@ -450,6 +467,73 @@ def parse_match_record(record_list: List) -> List[MatchRecord]:
     return records
 
 
+def extract_recent_6_stats(html: str) -> tuple:
+    """从HTML中提取主客队近6场统计（联赛数据）"""
+    home_recent_6 = None
+    away_recent_6 = None
+
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+
+        # 查找联赛积分排名区域 (porlet_5)
+        league_div = soup.find("div", id="porlet_5")
+        if not league_div:
+            return None, None
+
+        tables = league_div.find_all("table")
+
+        home_found = False
+        away_found = False
+
+        for table in tables:
+            rows = table.find_all("tr", align="middle")
+            for row in rows:
+                cells = row.find_all("td")
+                if len(cells) >= 6:
+                    label = cells[0].get_text(strip=True)
+                    if label == "近6":
+                        try:
+                            matches = int(cells[1].get_text(strip=True))
+                            wins = int(cells[2].get_text(strip=True))
+                            draws = int(cells[3].get_text(strip=True))
+                            losses = int(cells[4].get_text(strip=True))
+                            goals_for = int(cells[5].get_text(strip=True))
+                            goals_against = (
+                                int(cells[6].get_text(strip=True))
+                                if len(cells) > 6
+                                else 0
+                            )
+
+                            recent_record = RecentRecord(
+                                label=label,
+                                matches=matches,
+                                wins=wins,
+                                draws=draws,
+                                losses=losses,
+                                goals_for=goals_for,
+                                goals_against=goals_against,
+                            )
+
+                            # 根据bgcolor判断是主队还是客队，只取联赛数据（第一组）
+                            bgcolor = row.get("bgcolor", "")
+                            if bgcolor == "#FFECEC" and not home_found:
+                                home_recent_6 = recent_record
+                                home_found = True
+                            elif bgcolor == "#CCCCFF" and not away_found:
+                                away_recent_6 = recent_record
+                                away_found = True
+
+                            # 两队都找到后退出
+                            if home_found and away_found:
+                                return home_recent_6, away_recent_6
+                        except (ValueError, IndexError):
+                            continue
+    except Exception as e:
+        print(f"解析近6场统计失败: {e}")
+
+    return home_recent_6, away_recent_6
+
+
 def _parse_goal_time_row(row_text: str) -> List[int]:
     """解析进球时间表格的一行数据"""
     numbers = re.findall(r"<td[^>]*>(\d+)</td>", row_text)
@@ -608,6 +692,9 @@ def parse_html_basic_data(html_path: str) -> BasicData:
     # 解析进球时间数据
     goal_timing_data = extract_goal_timing_data(html_content)
 
+    # 解析近6场统计
+    home_recent_6, away_recent_6 = extract_recent_6_stats(html_content)
+
     return BasicData(
         match_info=match_info,
         home_team_full_stats=home_stats.get(
@@ -626,6 +713,8 @@ def parse_html_basic_data(html_path: str) -> BasicData:
         recent_matches_away=away_matches,
         h2h_records=h2h_records,
         league_table=league_table,
+        home_recent_6=home_recent_6,
+        away_recent_6=away_recent_6,
         goal_timing=goal_timing_data,
     )
 
