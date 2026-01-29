@@ -709,6 +709,19 @@ class GameTheoryPromptGenerator:
 
         return "\n".join(lines)
 
+    def _format_recent_6(self, recent_record: dict) -> str:
+        """格式化近6场战绩（使用新解析的数据格式）"""
+        if not recent_record:
+            return "N/A"
+
+        wins = recent_record.get("wins", 0)
+        draws = recent_record.get("draws", 0)
+        losses = recent_record.get("losses", 0)
+        goals_for = recent_record.get("goals_for", 0)
+        goals_against = recent_record.get("goals_against", 0)
+
+        return f"{wins}胜{draws}平{losses}负 (进{goals_for}失{goals_against})"
+
     def generate(
         self, match_id: str, config: Optional[PromptConfig] = None
     ) -> tuple[str, str]:
@@ -805,6 +818,13 @@ class GameTheoryPromptGenerator:
             f"- 总战绩: {home_stats.get('wins', 0)}胜 {home_stats.get('draws', 0)}平 {home_stats.get('losses', 0)}负 "
             f"(进{home_stats.get('goals_for', 0)}失{home_stats.get('goals_against', 0)})"
         )
+        prompt_parts.append(
+            f"- 主场战绩: {home_home.get('wins', 0)}胜 {home_home.get('draws', 0)}平 {home_home.get('losses', 0)}负 "
+            f"(进{home_home.get('goals_for', 0)}失{home_home.get('goals_against', 0)})"
+        )
+        home_recent_6 = data.get("home_recent_6")
+        if home_recent_6:
+            prompt_parts.append(f"- 近6场: {self._format_recent_6(home_recent_6)}")
         prompt_parts.append(f"主队 近10场评分: {info.get('home_recent_ratings', [])}")
 
         prompt_parts.append("\n### 客队")
@@ -815,6 +835,13 @@ class GameTheoryPromptGenerator:
             f"- 总战绩: {away_stats.get('wins', 0)}胜 {away_stats.get('draws', 0)}平 {away_stats.get('losses', 0)}负 "
             f"(进{away_stats.get('goals_for', 0)}失{away_stats.get('goals_against', 0)})"
         )
+        prompt_parts.append(
+            f"- 客场战绩: {away_away.get('wins', 0)}胜 {away_away.get('draws', 0)}平 {away_away.get('losses', 0)}负 "
+            f"(进{away_away.get('goals_for', 0)}失{away_away.get('goals_against', 0)})"
+        )
+        away_recent_6 = data.get("away_recent_6")
+        if away_recent_6:
+            prompt_parts.append(f"- 近6场: {self._format_recent_6(away_recent_6)}")
         prompt_parts.append(f"客队 近10场评分: {info.get('away_recent_ratings', [])}")
 
         prompt_parts.append("\n## 亚盘数据 ( 主队水位 | 盘口 | 客队水位 )")
@@ -851,9 +878,9 @@ class GameTheoryPromptGenerator:
             prompt_parts.append("暂无大小球数据")
 
         # 添加进球时间统计
-        goal_timing = data.get("goal_timing")
-        if goal_timing:
-            prompt_parts.append(self._format_goal_timing_for_prompt(goal_timing))
+        # goal_timing = data.get("goal_timing")
+        # if goal_timing:
+        #     prompt_parts.append(self._format_goal_timing_for_prompt(goal_timing))
 
         user_prompt = "\n".join(prompt_parts)
         return system_prompt, user_prompt
