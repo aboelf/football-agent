@@ -825,7 +825,7 @@ class GameTheoryPromptGenerator:
         home_recent_6 = data.get("home_recent_6")
         if home_recent_6:
             prompt_parts.append(f"- 近6场: {self._format_recent_6(home_recent_6)}")
-        prompt_parts.append(f"主队 近10场评分: {info.get('home_recent_ratings', [])}")
+        # prompt_parts.append(f"主队 近10场评分: {info.get('home_recent_ratings', [])}")
 
         prompt_parts.append("\n### 客队")
         prompt_parts.append(
@@ -842,7 +842,7 @@ class GameTheoryPromptGenerator:
         away_recent_6 = data.get("away_recent_6")
         if away_recent_6:
             prompt_parts.append(f"- 近6场: {self._format_recent_6(away_recent_6)}")
-        prompt_parts.append(f"客队 近10场评分: {info.get('away_recent_ratings', [])}")
+        # prompt_parts.append(f"客队 近10场评分: {info.get('away_recent_ratings', [])}")
 
         prompt_parts.append("\n## 亚盘数据 ( 主队水位 | 盘口 | 客队水位 )")
         if handicap_data:
