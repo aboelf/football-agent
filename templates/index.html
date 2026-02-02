@@ -904,7 +904,7 @@
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">模型选择</label>
                                 <select id="ai-model-select" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-bottom: 16px;">
-                                    <option value="gemini-3.0-flash">Gemini 3.0 Flash</option>
+                                    <option value="gemini-3-flash-preview">Gemini 3.0 Flash</option>
                                 </select>
                             </div>
                             <div style="margin-bottom: 16px;">
@@ -1049,7 +1049,7 @@
         let currentAIResultData = null;
         let conversationMessages = [];
         let currentAIProvider = 'local-gemini';
-        let currentAIModel = 'gemini-3.0-flash';
+        let currentAIModel = 'gemini-3-flash-preview';
 
         function filterDigits(input) {
             input.value = input.value.replace(/\D/g, '');
@@ -1174,8 +1174,6 @@
                     document.getElementById('matchId').style.borderColor = '';
 
                     await refreshFiles();
-                    await new Promise(r => setTimeout(r, 500));
-
                     performDownload(pendingMatchId);
                 } else {
                     showNotification('删除旧数据失败: ' + (deleteData.error || '未知错误'), 'error');
@@ -1244,15 +1242,11 @@
                     progressStatus.textContent = '赔率数据下载中...';
                     progressFill.style.width = '55%';
 
-                    await new Promise(r => setTimeout(r, 500));
-
                     const handicapRes = await fetch('/api/download/odds/handicap', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ match_id: matchId })
                     });
-
-                    await new Promise(r => setTimeout(r, 500));
 
                     const oddsRes = await fetch('/api/download/odds/odds', {
                         method: 'POST',
@@ -1262,8 +1256,6 @@
 
                     progressStatus.textContent = '大小球数据下载中...';
                     progressFill.style.width = '75%';
-
-                    await new Promise(r => setTimeout(r, 500));
 
                     const overunderRes = await fetch('/api/download/overunder/all', {
                         method: 'POST',
@@ -1316,15 +1308,11 @@
                     progressStatus.textContent = '赔率数据下载中...';
                     progressFill.style.width = '70%';
 
-                    await new Promise(r => setTimeout(r, 500));
-
                     const handicapRes = await fetch('/api/download/odds/handicap', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ match_id: matchId })
                     });
-
-                    await new Promise(r => setTimeout(r, 500));
 
                     const oddsRes = await fetch('/api/download/odds/odds', {
                         method: 'POST',
@@ -1369,8 +1357,6 @@
                     progressStatus.textContent = '大小球数据下载中...';
                     progressFill.style.width = '80%';
 
-                    await new Promise(r => setTimeout(r, 500));
-
                     const overunderRes = await fetch('/api/download/overunder/all', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1400,8 +1386,6 @@
                     progressFill.style.width = '50%';
                     progressStatus.textContent = '欧赔下载中...';
 
-                    await new Promise(r => setTimeout(r, 500));
-
                     const oddsRes = await fetch('/api/download/odds/odds', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1410,8 +1394,6 @@
 
                     progressStatus.textContent = '大小球下载中...';
                     progressFill.style.width = '75%';
-
-                    await new Promise(r => setTimeout(r, 500));
 
                     const overunderRes = await fetch('/api/download/overunder/all', {
                         method: 'POST',
@@ -1474,8 +1456,6 @@
                     progressFill.style.width = '60%';
                     progressStatus.textContent = '欧赔下载中...';
 
-                    await new Promise(r => setTimeout(r, 500));
-
                     const oddsRes = await fetch('/api/download/odds/odds', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1498,8 +1478,6 @@
                 } else if (downloadOverunder) {
                     progressStatus.textContent = '大小球数据下载中...';
                     progressFill.style.width = '50%';
-
-                    await new Promise(r => setTimeout(r, 500));
 
                     const overunderRes = await fetch('/api/download/overunder/all', {
                         method: 'POST',
@@ -2453,8 +2431,8 @@
                 { value: 'minimax-m2.1', text: 'MiniMax-M2.1' }
             ],
             'local-gemini': [
-                { value: 'gemini-3.0-flash', text: 'Gemini 3.0 Flash' },
-                { value: 'gemini-3.0-pro', text: 'Gemini 3.0 Pro' },
+                { value: 'gemini-3-flash-preview', text: 'Gemini 3.0 Flash' },
+                { value: 'gemini-3-pro-preview', text: 'Gemini 3.0 Pro' },
                 { value: 'gemini-3.0-flash-thinking', text: 'Gemini 3.0 Flash (Thinking)' }
             ],
             'gemini': [
