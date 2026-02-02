@@ -32,171 +32,69 @@ class GameTheoryPromptGenerator:
 
     # SYSTEM_PROMPT = """你是一位精通博弈论（Game Theory）与动态赔率逻辑的顶级战略顾问。你的核心任务是识别机构在盘面上的**"财务对冲"与"真实防御"**。"""
     SYSTEM_PROMPT = """
-{
-  "role": "expert_football_odds_game_theory_analyst",
-  "analysis_goal": "通过亚盘与欧赔的初盘设定与动态变化，反向推演博彩公司在不同阶段的风险管理策略与真实博弈意图，并给出可执行的投注判断。",
-  "steps": [
-    {
-        "step_id": 0,
-        "step_name": "盘口阶段识别与信号权重裁决",
-        "tasks": [
-            "将盘口演化划分为三个阶段：初盘期（开盘至赛前48小时）、中盘期（赛前48小时至赛前90分钟）、终盘期（赛前90分钟至开赛）。",
-            "判断盘口在中盘期是否存在：频繁升降盘、盘口反复横跳、主流公司分歧显著等特征。",
-            "判断终盘期是否出现：主流公司盘口高度一致、关键盘口坚决不退、以水位而非盘口进行风险调节等特征。",
-            "基于以下规则分配分析权重：",
-            "规则A：若终盘期出现高度一致的站盘行为（≥70%主流公司同盘口），则终盘信号权重 ≥ 60%，中盘信号仅作为背景参考。",
-            "规则B：若终盘期盘口继续分歧或再次退盘，则中盘期信号权重 ≥ 60%，终盘视为被动对冲。",
-            "规则C：若终盘期出现与中盘期完全相反的定价逻辑，必须明确判断其是否构成‘强行纠偏’或‘诱导反杀’，并标记为高风险场次。"
-        ],
-        "output": {
-            "dominant_analysis_phase": "初盘 / 中盘 / 终盘",
-            "signal_weight_distribution": {
-            "early_market": "",
-            "mid_market": "",
-            "late_market": ""
-            },
-            "phase_conflict_flag": "是 / 否"
-        }
-    },
-    {
-        "step_id": 1,
-        "step_name": "宏观定位与机构初始定价逻辑判定",
-        "tasks": [
-        "基于双方排名、积分差距、近期状态等基本面信息，构建常规足球逻辑下的理论盘口区间。",
-        "判断初始盘口是否贴合常规实力模型，或存在显著偏离。",
-        "分析是否利用强队名气、连胜叙事、主场因素等市场情绪设置低准入门槛。",
-        "提出关于机构初盘意图的初步假设（如风险防守、市场引导或信息领先）。"
-        ],
-        "output": {
-        "亚盘理论范围": "",
-        "初盘定价类型": "实力定价 / 偏离定价",
-        "initial_intent_hypothesis": ""
-        }
-    },
-    {
-        "step_id": 2,
-        "step_name": "庄家共识强度与异常锚点扫描",
-        "tasks": [
-        "根据亚盘和欧赔数据，反馈哪家/哪些庄家的初始定位最值得关注？",
-        "计算欧赔 胜 / 平 / 负 各结果项的离散度指标（标准差、变异系数）。",
-        "比较不同结果项的共识强度，识别离散度显著最低的结果。",
-        "扫描是否存在率先开出偏离均值低赔的机构，判断其是否构成市场锚点。",
-        "分析该低离散度结果是否为机构重点防范的真实风险点。"
-        ],
-        "output": {
-        "need_to_be_awared": ""//check
-        "odds_dispersion": {
-            "home": "",
-            "draw": "",
-            "away": ""
-        },
-        "lowest_dispersion_result": "",
-        "anomalous_anchor_bookmaker": "",
-        "defensive_risk_focus": ""
-        }
-    },
-    {
-        "step_id": 3,
-        "step_name": "动态赔率博弈假设构建",
-        "tasks": [
-        "分析亚盘在时间序列上的变化方向与机构一致性。",
-        "判断盘口变化（如降盘、升盘、受让加深）是出于赔付风险控制还是投注引导。",
-        "分析水位变化是否承担主要调节功能，或盘口结构发生实质性调整。",
-        "观察欧赔中主胜 / 平局 / 客胜的变化趋势与同步程度。",
-        "识别被持续压低赔率的结果项，判断其风险属性。",
-        "结合亚盘与欧赔，构建一项或多项机构策略假设，并给出反向解释。如诱导策略-机构利用“退盘后的便宜感”或“大幅降水”制造稳当感，吸引资金流向弱势方；阻碍策略-机构维持高门槛盘口（如坚决不退盘），并给予高水位（1.0+）。利用玩家对“高位水位”的天然恐惧，以及对“平局”的贪婪，强行将资金赶向下盘。"
-        ],
-        "output": {
-        "asian_handicap_behavior": "",
-        "european_odds_behavior": "",
-        "strategy_hypotheses": [
-            {
-            "hypothesis": "",
-            "supporting_evidence": "",
-            "counter_explanation": ""
-            }
-        ]
-        }
-    },
-    {
-        "step_id": 4,
-        "step_name": "量价背离与变盘逻辑",
-        "tasks": [
-        "盘口硬度校验":[
-            {阻盘（关门谢客）：水位持续拉升至满水，但盘口纹丝不动（例如始终维持在0.5）。结论：机构宁可背负单笔高赔付风险，也不愿降低赢盘难度。}，
-            {诱多（高位派发）：水位升高的同时伴随降盘（0.5退至0.25）。结论：机构对主胜信心崩塌，试图利用“名气+低门槛”吸引最后的回扣资金。}
-        ],
-        "平赔陷阱识别:若主胜赔率抬升的同时，平赔剧烈下调（如 3.5 -> 3.1）"
-        ],
-        "output": {
-        "盘口硬度校验": "阻盘 / 诱多",
-        "是否存在平赔陷阱": "存在 / 不存在"
-        }
-    },
-    {
-        "step_id": 5,
-        "step_name": "临场财务对冲监控（开赛前30分钟）",
-        "tasks": [
-        "监控亚盘盘口不变情况下的水位剧烈波动（如超过10%）。",
-        "判断水位波动是顺应市场热度的派发行为，还是逆市的财务防御。",
-        "检查是否存在欧赔拉升而亚盘强行压低的量价背离现象。",
-        "评估当前水位结构下，哪种赛果对机构的总体赔付压力最小。"
-        ],
-        "output": {
-        "capital_reversion_signal": "",
-        "price_volume_divergence": "",
-        "minimum_payout_outcome": ""
-        }
-    },
-    {
-        "step_id": 5.5,
-        "step_name": "终盘裁决与前序结论推翻机制",
-        "tasks": [
-            "若终盘阶段盘口未发生结构性变化（不退盘、不升盘），仅通过水位进行大幅调整，优先判定为阻盘或挡筹行为。",
-            "若终盘阶段盘口发生方向性退让（如 半球 → 平/半），即使前序分析偏向强势方，也需重新评估主流资金真实流向。",
-            "检查终盘欧赔是否出现快速收敛（主胜、平赔或客胜其中一项被集中压缩），并判断其是否与亚盘方向一致。",
-            "若终盘行为与中盘判断冲突，必须在结论中明确说明‘本次预测采信终盘信号，并推翻中盘假设’或相反。",
-            "禁止在终盘一致性极强的情况下，仍以中盘震荡作为主要结论依据。"
-        ],
-        "output": {
-            "late_stage_override": "是 / 否",
-            "overridden_steps": [],
-            "final_decision_basis": "终盘主导 / 中盘主导"
-        }
-    },
-    {
-        "step_id": 6,
-        "step_name": "对立观点辩论（反向验证）",
-        "tasks": [
-        "模拟分析师A，基于盘口与赔率支持主胜观点，并阐述在此赔率下谁是真正的利益既得方。",
-        "模拟分析师B，基于盘口与赔率支持客胜观点，并阐述在此赔率下谁是真正的利益既得方。",
-        "要求双方指出对方逻辑中的潜在漏洞。"
-        ],
-        "output": {
-        "analyst_A_argument": "",
-        "analyst_B_argument": "",
-        "key_points_of_disagreement": ""
-        }
-    },
-    {
-        "step_id": 7,
-        "step_name": "综合结论输出",
-        "tasks": [
-        "在综合所有分析后，给出最优赛果判断。",
-        "提供对应的亚洲盘口建议。",
-        "明确指出可能存在的市场诱导或陷阱。",
-        "给出结论置信度并简要说明原因。"
-        ],
-        "output": {
-        "recommended_outcome": "主胜 / 平局 / 客胜",
-        "asian_handicap_recommendation": "",
-        "market_trap_warning": "",
-        "confidence_level": "高 / 中 / 低"
-        }
-    }
-  ]
-}
+ # Role                                                                                                                                                                               2 你是一名精通「机构博弈论」的足球赛事首席分析师。你的思维模式完全区别于传统基本面分析，你只关注**博彩机构（MarketMaker）的资金流控意图**。你的核心任务是利用多维度数据寻找逻辑矛盾
+你是一名精通「机构博弈论」的足球赛事首席分析师。你的思维模式完全区别于传统基本面分析，你只关注**博彩机构（MarketMaker）的资金流控意图**。你的核心任务是利用多维度数据寻找逻辑矛盾
+从而捕捉比赛的**“唯一解”**。 
 
+ # Prime Directives (最高指令)
+ 1.  **严禁**单纯依据球队名气或排名做预测。
+ 2.  **必须**执行“假设-验证”逻辑，严禁“马后炮”式分析。
+ 3.  **权重覆盖原则**：
+     *   `临界期数据 (T-2h)` 权重 > `后期数据` > `初始数据` > `基本面`。
+     *   若临界期出现剧烈变动（跳水/反向拉升），视为“图穷匕见”，必须推翻之前的结论，以此为准。
+ 4.  **大小球一票否决**：若让球盘方向（如主胜）缺乏大小球盘口（如大球）的逻辑支撑（维度背离），则主胜不成立。
+
+ # Analytical Framework (分析逻辑架构)
+
+ ## Phase 1: 静态底蕴与初始布局 (T-48h 之前)
+ *   **底蕴锚点**：评估[主队]与[客队]的市场形象差距。
+ *   **初始定位**：判断初盘（让球/大小球）是「阻力型」（偏深/高水）还是「诱导型」（偏浅/低水）。
+ *   *输出中间变量：[原始热度方]*
+
+ ## Phase 2: 动态博弈与降本增效 (T-24h ~ T-2h)
+ *   **资金流向验证**：观察热度方的水位变化。
+     *   热度高 + 降水/降盘 = **降本增效（真实看好）**。
+     *   热度高 + 升水/升盘 = **诱导杀猪（极其危险）**。
+ *   **维度共振**：检查让球盘变动方向是否与大小球变动方向一致。
+
+ ## Phase 3: 临界唯一解 (The Threshold: T-2h ~ T-0) [核心]
+ *   **时间窗口**：首发名单公布(T-1h)前后及开赛前最后时刻。
+ *   **唯一解判定**：
+     *   若数据平稳过渡，维持 Phase 2 结论。
+     *   **异常警报**：若此时出现**断崖式水位跳水**或**盘口方向突变**，这是机构在巨量资金入场后的真实应激反应。**此信号为“唯一解”，无视前期所有逻辑，直接跟随此变动方向。**
+
+ # Input Data Template (用户将提供)
+ 1.  **对阵信息**：[联赛/主队/客队/时间]
+ 2.  **底蕴定性**：[双方近况/历史交锋/市场形象对比]
+ 3.  **盘口数据流**：
+     *   `[初始数据]`：(让球+水位) / (大小球+水位)
+     *   `[后期数据]`：(让球+水位) / (大小球+水位) —— *注明变动方向*
+     *   `[临界数据]` (重要)：(T-60min至开赛前的任何剧烈波动) —— *若无特殊变动请注明“平稳”*
+
+ # Output Protocol (结构化输出)
+
+ 请严格按照以下步骤进行思维链推演：
+
+ ### 1. 🔍 市场底蕴与初盘解码
+ *   分析谁是“原始热度方”。
+ *   解码初盘意图：机构是在利用底蕴造热，还是在设置门槛阻挡？
+
+ ### 2. 🛡️ 过程博弈与矛盾点 (T-24h)
+ *   分析“降本增效”逻辑是否成立。
+ *   **大小球刑侦**：指出大小球盘口是否支持让球方的打出。（例如：让球深开但大小球极浅 -> 判定为假深盘）。
+
+ ### 3. 🚨 临界“唯一解”终审 (T-2h)
+ *   **首发与资金冲击**：首发公布后数据是否发生反转？
+ *   **最终定性**：是否存在临场“跳水”或“诱杀”？（如果用户未提供临界数据，请提示数据的缺失可能带来的风险）。
+
+ ### 4. 🔮 最终裁决
+ *   **亚盘/方向**：[明确指出看好的方向]
+ *   **进球数趋势**：[大球/小球]
+ *   **逻辑置信度**：[⭐⭐⭐ - ⭐⭐⭐⭐⭐]
+     *   *(注：若逻辑完美自洽且有大小球支撑，给5星；若存在逻辑硬伤或临界数据缺失，最高3星)*
+
+ ---
+ **数据输入通道已打开。请发送你的比赛数据（务必包含临界期变动情况）：**
 
     """
     BOOKMAKER_NAMES = {
@@ -624,90 +522,90 @@ class GameTheoryPromptGenerator:
 
         return "\n".join(lines)
 
-    def _compare_bookmakers(self, handicap_data: List[dict]) -> str:
-        if not handicap_data or len(handicap_data) < 2:
-            return ""
-
-        lines = ["\n### 庄家对比分析"]
-
-        latest_odds = []
-        for data in handicap_data:
-            if data.get("odds"):
-                latest = data["odds"][-1]
-                latest_odds.append(
-                    {
-                        "name": data["name"],
-                        "home": latest["home_odds"],
-                        "handicap": latest["handicap"],
-                        "away": latest["away_odds"],
-                    }
-                )
-
-        if not latest_odds:
-            return ""
-
-        home_odds = [(o["name"], o["home"]) for o in latest_odds]
-        max_home = max(home_odds, key=lambda x: x[1])
-        min_home = min(home_odds, key=lambda x: x[1])
-
-        away_odds = [(o["name"], o["away"]) for o in latest_odds]
-        max_away = max(away_odds, key=lambda x: x[1])
-        min_away = min(away_odds, key=lambda x: x[1])
-
-        lines.append(
-            f"- 主胜分歧: 最高 {max_home[0]}@{max_home[1]}, 最低 {min_home[0]}@{min_home[1]}"
-        )
-        lines.append(
-            f"- 客胜分歧: 最高 {max_away[0]}@{max_away[1]}, 最低 {min_away[0]}@{min_away[1]}"
-        )
-
-        converted_handicaps = []
-        for o in latest_odds:
-            converted = self._convert_handicap_to_readable(o["handicap"])
-            converted_handicaps.append((o["name"], converted))
-        unique_handicaps = list(set(h[1] for h in converted_handicaps))
-        if len(unique_handicaps) > 1:
-            lines.append(f"- 盘口分歧: {', '.join(unique_handicaps)}")
-
-        return "\n".join(lines)
-
-    def _compare_european_odds(self, odds_data: List[dict]) -> str:
-        if not odds_data or len(odds_data) < 2:
-            return ""
-
-        lines = ["\n### 欧赔庄家对比"]
-
-        latest_odds = []
-        for data in odds_data:
-            if data.get("odds"):
-                latest = data["odds"][-1]
-                latest_odds.append(
-                    {
-                        "name": data["name"],
-                        "home": latest["home"],
-                        "draw": latest["draw"],
-                        "away": latest["away"],
-                    }
-                )
-
-        if not latest_odds:
-            return ""
-
-        avg_home = sum(o["home"] for o in latest_odds) / len(latest_odds)
-        avg_draw = sum(o["draw"] for o in latest_odds) / len(latest_odds)
-        avg_away = sum(o["away"] for o in latest_odds) / len(latest_odds)
-
-        lines.append(f"- 平均赔率: {avg_home:.2f} | {avg_draw:.2f} | {avg_away:.2f}")
-
-        min_home = min(latest_odds, key=lambda x: x["home"])
-        min_draw = min(latest_odds, key=lambda x: x["draw"])
-        min_away = min(latest_odds, key=lambda x: x["away"])
-
-        lines.append(f"- 主胜最低: {min_home['name']}@{min_home['home']}")
-        lines.append(f"- 平局最低: {min_draw['name']}@{min_draw['draw']}")
-        lines.append(f"- 客胜最低: {min_away['name']}@{min_away['away']}")
-
-        return "\n".join(lines)
+    # def _compare_bookmakers(self, handicap_data: List[dict]) -> str:
+    #     if not handicap_data or len(handicap_data) < 2:
+    #         return ""
+    #
+    #     lines = ["\n### 庄家对比分析"]
+    #
+    #     latest_odds = []
+    #     for data in handicap_data:
+    #         if data.get("odds"):
+    #             latest = data["odds"][-1]
+    #             latest_odds.append(
+    #                 {
+    #                     "name": data["name"],
+    #                     "home": latest["home_odds"],
+    #                     "handicap": latest["handicap"],
+    #                     "away": latest["away_odds"],
+    #                 }
+    #             )
+    #
+    #     if not latest_odds:
+    #         return ""
+    #
+    #     home_odds = [(o["name"], o["home"]) for o in latest_odds]
+    #     max_home = max(home_odds, key=lambda x: x[1])
+    #     min_home = min(home_odds, key=lambda x: x[1])
+    #
+    #     away_odds = [(o["name"], o["away"]) for o in latest_odds]
+    #     max_away = max(away_odds, key=lambda x: x[1])
+    #     min_away = min(away_odds, key=lambda x: x[1])
+    #
+    #     lines.append(
+    #         f"- 主胜分歧: 最高 {max_home[0]}@{max_home[1]}, 最低 {min_home[0]}@{min_home[1]}"
+    #     )
+    #     lines.append(
+    #         f"- 客胜分歧: 最高 {max_away[0]}@{max_away[1]}, 最低 {min_away[0]}@{min_away[1]}"
+    #     )
+    #
+    #     converted_handicaps = []
+    #     for o in latest_odds:
+    #         converted = self._convert_handicap_to_readable(o["handicap"])
+    #         converted_handicaps.append((o["name"], converted))
+    #     unique_handicaps = list(set(h[1] for h in converted_handicaps))
+    #     if len(unique_handicaps) > 1:
+    #         lines.append(f"- 盘口分歧: {', '.join(unique_handicaps)}")
+    #
+    #     return "\n".join(lines)
+    #
+    # def _compare_european_odds(self, odds_data: List[dict]) -> str:
+    #     if not odds_data or len(odds_data) < 2:
+    #         return ""
+    #
+    #     lines = ["\n### 欧赔庄家对比"]
+    #
+    #     latest_odds = []
+    #     for data in odds_data:
+    #         if data.get("odds"):
+    #             latest = data["odds"][-1]
+    #             latest_odds.append(
+    #                 {
+    #                     "name": data["name"],
+    #                     "home": latest["home"],
+    #                     "draw": latest["draw"],
+    #                     "away": latest["away"],
+    #                 }
+    #             )
+    #
+    #     if not latest_odds:
+    #         return ""
+    #
+    #     avg_home = sum(o["home"] for o in latest_odds) / len(latest_odds)
+    #     avg_draw = sum(o["draw"] for o in latest_odds) / len(latest_odds)
+    #     avg_away = sum(o["away"] for o in latest_odds) / len(latest_odds)
+    #
+    #     lines.append(f"- 平均赔率: {avg_home:.2f} | {avg_draw:.2f} | {avg_away:.2f}")
+    #
+    #     min_home = min(latest_odds, key=lambda x: x["home"])
+    #     min_draw = min(latest_odds, key=lambda x: x["draw"])
+    #     min_away = min(latest_odds, key=lambda x: x["away"])
+    #
+    #     lines.append(f"- 主胜最低: {min_home['name']}@{min_home['home']}")
+    #     lines.append(f"- 平局最低: {min_draw['name']}@{min_draw['draw']}")
+    #     lines.append(f"- 客胜最低: {min_away['name']}@{min_away['away']}")
+    #
+    #     return "\n".join(lines)
 
     def _format_recent_6(self, recent_record: dict) -> str:
         """格式化近6场战绩（使用新解析的数据格式）"""
@@ -721,6 +619,66 @@ class GameTheoryPromptGenerator:
         goals_against = recent_record.get("goals_against", 0)
 
         return f"{wins}胜{draws}平{losses}负 (进{goals_for}失{goals_against})"
+
+    def _format_h2h_for_prompt(
+        self, h2h_records: list, home_team: str, away_team: str
+    ) -> str:
+        """格式化历史交锋数据"""
+        if not h2h_records:
+            return "\n## 历史交锋\n暂无历史交锋数据"
+
+        lines = ["\n## 历史交锋 (近3年)"]
+        lines.append(f"共 {len(h2h_records)} 场历史交锋")
+
+        for record in h2h_records[:8]:  # 最多显示8场
+            date = record.get("date", "N/A")
+            home = record.get("home_team", "N/A")
+            away = record.get("away_team", "N/A")
+            home_goals = record.get("home_goals", 0)
+            away_goals = record.get("away_goals", 0)
+            score = f"{home_goals}-{away_goals}"
+
+            # 判断结果
+            if home_goals > away_goals:
+                result = "主胜"
+            elif home_goals < away_goals:
+                result = "客胜"
+            else:
+                result = "平"
+
+            lines.append(f"  {date}: {home} {score} {away} ({result})")
+
+        return "\n".join(lines)
+
+    def _format_recent_matches_for_prompt(
+        self, matches: list, team_name: str, label: str
+    ) -> str:
+        """格式化近期比赛数据"""
+        if not matches:
+            return f"\n{label}\n暂无近期比赛数据"
+
+        lines = [f"\n{label}"]
+        lines.append(f"共 {len(matches)} 场近期比赛")
+
+        for record in matches[:6]:  # 最多显示6场
+            date = record.get("date", "N/A")
+            home = record.get("home_team", "N/A")
+            away = record.get("away_team", "N/A")
+            home_goals = record.get("home_goals", 0)
+            away_goals = record.get("away_goals", 0)
+            score = f"{home_goals}-{away_goals}"
+
+            # 判断结果
+            if home_goals > away_goals:
+                result = "胜"
+            elif home_goals < away_goals:
+                result = "负"
+            else:
+                result = "平"
+
+            lines.append(f"  {date}: {home} {score} {away} ({result})")
+
+        return "\n".join(lines)
 
     def generate(
         self, match_id: str, config: Optional[PromptConfig] = None
@@ -753,16 +711,21 @@ class GameTheoryPromptGenerator:
             data.get("league_table", []) if config.include_league_table else []
         )
 
-        available = self._get_all_available_bookmakers(match_id)
+        # 只使用bet365的数据（暂时注释掉多家庄家）
+        handicap_bms = ["bet365"]
+        odds_bms = ["bet365"]
+        overunder_bms = ["bet365"]
 
-        if config.use_all_bookmakers:
-            handicap_bms = available.get("handicap", self.default_handicap_bookmakers)
-            odds_bms = available.get("odds", self.default_odds_bookmakers)
-            overunder_bms = available.get("overunder", self.default_handicap_bookmakers)
-        else:
-            handicap_bms = config.handicap_bookmakers or [config.primary_bookmaker]
-            odds_bms = config.odds_bookmakers or [config.primary_bookmaker]
-            overunder_bms = config.handicap_bookmakers or [config.primary_bookmaker]
+        # 原有逻辑（已注释）
+        # available = self._get_all_available_bookmakers(match_id)
+        # if config.use_all_bookmakers:
+        #     handicap_bms = available.get("handicap", self.default_handicap_bookmakers)
+        #     odds_bms = available.get("odds", self.default_odds_bookmakers)
+        #     overunder_bms = available.get("overunder", self.default_handicap_bookmakers)
+        # else:
+        #     handicap_bms = config.handicap_bookmakers or [config.primary_bookmaker]
+        #     odds_bms = config.odds_bookmakers or [config.primary_bookmaker]
+        #     overunder_bms = config.handicap_bookmakers or [config.primary_bookmaker]
 
         handicap_data = []
         for bm in handicap_bms:
@@ -844,12 +807,35 @@ class GameTheoryPromptGenerator:
             prompt_parts.append(f"- 近6场: {self._format_recent_6(away_recent_6)}")
         # prompt_parts.append(f"客队 近10场评分: {info.get('away_recent_ratings', [])}")
 
-        prompt_parts.append("\n## 亚盘数据 ( 主队水位 | 盘口 | 客队水位 )")
-        if handicap_data:
+        # 添加历史交锋和近期比赛数据
+        h2h_records = data.get("h2h_records", [])
+        recent_matches_home = data.get("recent_matches_home", [])
+        recent_matches_away = data.get("recent_matches_away", [])
+
+        # 历史交锋
+        if config.include_h2h and h2h_records:
             prompt_parts.append(
-                f"共{len(handicap_data)}家庄家: {', '.join(d['name'] for d in handicap_data)}"
+                self._format_h2h_for_prompt(h2h_records, home_team, away_team)
             )
 
+        # 主队近期比赛
+        if config.include_recent_matches and recent_matches_home:
+            prompt_parts.append(
+                self._format_recent_matches_for_prompt(
+                    recent_matches_home, home_team, f"### {home_team}近期比赛 (近1个月)"
+                )
+            )
+
+        # 客队近期比赛
+        if config.include_recent_matches and recent_matches_away:
+            prompt_parts.append(
+                self._format_recent_matches_for_prompt(
+                    recent_matches_away, away_team, f"### {away_team}近期比赛 (近1个月)"
+                )
+            )
+
+        prompt_parts.append("\n## 亚盘数据 ( 主队水位 | 盘口 | 客队水位 )")
+        if handicap_data:
             for entry in handicap_data:
                 prompt_parts.append(self._format_handicap_for_prompt(entry))
         else:
@@ -857,10 +843,6 @@ class GameTheoryPromptGenerator:
 
         prompt_parts.append("\n## 欧赔数据 ( 主胜 | 平局 | 客胜 )")
         if odds_data:
-            prompt_parts.append(
-                f"共{len(odds_data)}家庄家: {', '.join(d['name'] for d in odds_data)}"
-            )
-
             for entry in odds_data:
                 prompt_parts.append(self._format_european_for_prompt(entry))
         else:
@@ -868,10 +850,6 @@ class GameTheoryPromptGenerator:
 
         prompt_parts.append("\n## 大小球数据 ( 大球水位 | 进球数盘口 | 小球水位 )")
         if overunder_data:
-            prompt_parts.append(
-                f"共{len(overunder_data)}家庄家: {', '.join(d['name'] for d in overunder_data)}"
-            )
-
             for odds_entry in overunder_data:
                 prompt_parts.append(self._format_overunder_for_prompt(odds_entry))
         else:
@@ -898,7 +876,10 @@ def main():
     generator = GameTheoryPromptGenerator("./data")
 
     config = PromptConfig(
-        include_h2h=True, include_league_table=True, use_all_bookmakers=True
+        include_h2h=True,
+        include_recent_matches=True,
+        include_league_table=True,
+        use_all_bookmakers=True,
     )
 
     match_id = "2789331"
