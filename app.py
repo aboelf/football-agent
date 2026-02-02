@@ -16,8 +16,12 @@ os.environ.setdefault(
 
 os.environ.setdefault(
     "LOCAL_GEMINI_API_KEY",
-    "sk-geminixxxxx",
+    "123456",
 )
+
+# Ensure the API key is set (in case setdefault didn't work)
+if "LOCAL_GEMINI_API_KEY" not in os.environ:
+    os.environ["LOCAL_GEMINI_API_KEY"] = "123456"
 
 os.environ.setdefault(
     "GOOGLE_API_KEY",
@@ -68,28 +72,28 @@ AI_PROVIDERS = {
     "local-gemini": {
         "name": "本地 Gemini (兼容OpenAI)",
         "models": {
-            "gemini-3.0-flash": {
+            "gemini-3-flash-preview": {
                 "name": "Gemini 3.0 Flash",
                 "api_key_env": "LOCAL_GEMINI_API_KEY",
-                "endpoint": "http://localhost:8000/v1/chat/completions",
-                "temperature": 0.3,
-                "max_tokens": 4096,
+                "endpoint": "http://localhost:3000/gemini-cli-oauth/v1/messages",
+                "temperature": 0.1,
+                "max_tokens": 16384,
                 "thinking": False,
             },
-            "gemini-3.0-pro": {
+            "gemini-3-pro-preview": {
                 "name": "Gemini 3.0 Pro",
                 "api_key_env": "LOCAL_GEMINI_API_KEY",
-                "endpoint": "http://localhost:8000/v1/chat/completions",
-                "temperature": 0.3,
-                "max_tokens": 4096,
+                "endpoint": "http://localhost:3000/gemini-cli-oauth/v1/messages",
+                "temperature": 0.1,
+                "max_tokens": 16384,
                 "thinking": False,
             },
             "gemini-3.0-flash-thinking": {
                 "name": "Gemini 3.0 Flash (Thinking)",
                 "api_key_env": "LOCAL_GEMINI_API_KEY",
-                "endpoint": "http://localhost:8000/v1/chat/completions",
-                "temperature": 0.3,
-                "max_tokens": 4096,
+                "endpoint": "http://localhost:3000/gemini-cli-oauth/v1/messages",
+                "temperature": 0.1,
+                "max_tokens": 16384,
                 "thinking": True,
             },
         },
@@ -164,6 +168,16 @@ def call_ai_analyze(
 
     model_config = provider_config["models"][model]
     api_key = os.environ.get(model_config["api_key_env"])
+
+    # Fallback: if API key not found, use hardcoded value for local-gemini
+    if not api_key and provider == "local-gemini":
+        api_key = "123456"
+        print(f"[DEBUG] Using hardcoded API key for local-gemini")
+
+    print(f"[DEBUG] Provider: {provider}, Model: {model}")
+    print(f"[DEBUG] API Key Env: {model_config['api_key_env']}")
+    print(f"[DEBUG] API Key: {'***' + api_key[-4:] if api_key else 'None'}")
+    print(f"[DEBUG] Endpoint: {model_config['endpoint']}")
 
     if not api_key:
         return {
@@ -314,7 +328,7 @@ def call_ai_analyze(
             response = client.post(
                 model_config["endpoint"],
                 headers={
-                    "Authorization": f"Bearer {api_key}",
+                    "X-API-Key": api_key,
                     "Content-Type": "application/json",
                 },
                 json={
@@ -328,17 +342,50 @@ def call_ai_analyze(
 
             result = response.json()
 
-            if "choices" in result:
-                ai_response = result["choices"][0]["message"]["content"]
+            # Debug: print the actual response
+            print(f"[DEBUG] API Response: {result}")
 
-                # 保存结果
-                save_ai_result(match_id, model, ai_response)
-                return {"success": True, "data": {"response": ai_response}}
-            else:
+            # Check for error in response
+            if "error" in result:
                 return {
                     "success": False,
                     "error": result.get("error", {}).get("message", "AI调用失败"),
                 }
+
+            # Parse the response - local-gemini uses a different format than OpenAI
+            if "content" in result:
+                # Local Gemini format: {"content": [{"type": "text", "text": "..."}], "role": "assistant", ...}
+                content_blocks = result.get("content", [])
+                if isinstance(content_blocks, list):
+                    ai_response = ""
+                    for block in content_blocks:
+                        if block.get("type") == "text":
+                            ai_response += block.get("text", "")
+                    if ai_response:
+                        # 保存结果
+                        save_ai_result(match_id, model, ai_response)
+                        return {"success": True, "data": {"response": ai_response}}
+                    elif result.get("stop_reason") == "max_tokens":
+                        # Response was truncated due to token limit
+                        return {
+                            "success": False,
+                            "error": f"AI响应被截断 (达到max_tokens限制)。输入tokens: {result.get('usage', {}).get('input_tokens', 0)}, 输出tokens: {result.get('usage', {}).get('output_tokens', 0)}。请减少prompt内容或增加max_tokens设置。",
+                        }
+                elif isinstance(content_blocks, str):
+                    ai_response = content_blocks
+                    save_ai_result(match_id, model, ai_response)
+                    return {"success": True, "data": {"response": ai_response}}
+
+            # Fallback to OpenAI format
+            if "choices" in result:
+                ai_response = result["choices"][0]["message"]["content"]
+                save_ai_result(match_id, model, ai_response)
+                return {"success": True, "data": {"response": ai_response}}
+
+            return {
+                "success": False,
+                "error": f"AI返回格式未知或内容为空。Stop reason: {result.get('stop_reason', 'unknown')}",
+            }
 
     except Exception as e:
         return {"success": False, "error": str(e)}

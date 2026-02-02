@@ -1,6 +1,7 @@
 import re
 import json
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict, field
@@ -365,7 +366,16 @@ def parse_team_stats_from_table(
     return stats
 
 
-def parse_match_record(record_list: List) -> List[MatchRecord]:
+def parse_match_record(
+    record_list: List, min_date: Optional[datetime] = None
+) -> List[MatchRecord]:
+    """
+    解析比赛记录列表
+
+    Args:
+        record_list: 原始记录列表
+        min_date: 最小日期筛选条件（可选），只保留 >= min_date 的记录
+    """
     records = []
     for item in record_list:
         record = item
@@ -451,9 +461,28 @@ def parse_match_record(record_list: List) -> List[MatchRecord]:
                 away_goals = 0
                 result = 0
 
+            # 解析记录日期（格式：26-01-13 或 2026-01-13）
+            record_date_str = str(record[0]) if len(record) > 0 else ""
+            record_datetime = None
+            if record_date_str:
+                try:
+                    # 尝试多种日期格式
+                    for fmt in ["%y-%m-%d", "%Y-%m-%d", "%Y%m%d"]:
+                        try:
+                            record_datetime = datetime.strptime(record_date_str, fmt)
+                            break
+                        except ValueError:
+                            continue
+                except Exception:
+                    pass
+
+            # 日期筛选：如果指定了 min_date，则只保留 >= min_date 的记录
+            if min_date and record_datetime and record_datetime < min_date:
+                continue
+
             records.append(
                 MatchRecord(
-                    date=str(record[0]) if len(record) > 0 else "",
+                    date=record_date_str,
                     league=str(record[2]) if len(record) > 2 else "",
                     home_team=home_team,
                     away_team=away_team,
@@ -663,14 +692,36 @@ def parse_html_basic_data(html_path: str) -> BasicData:
     if not away_stats:
         away_stats = parse_team_stats_from_table(html_content, "西汉姆联")
 
+    # 解析比赛日期用于时间筛选
+    match_date = None
+    if match_info.match_time:
+        try:
+            match_date = datetime.strptime(
+                match_info.match_time.split(" ")[0], "%Y-%m-%d"
+            )
+        except ValueError:
+            pass
+
+    # 计算时间筛选边界
+    # 近期战绩：取近1个月（30天）
+    recent_min_date = match_date - timedelta(days=30) if match_date else None
+    # 历史交锋：取近3年（1095天）
+    h2h_min_date = match_date - timedelta(days=1095) if match_date else None
+
     h2h_data = extract_js_data(html_content, "v_data")
-    h2h_records = parse_match_record(h2h_data) if h2h_data else []
+    h2h_records = (
+        parse_match_record(h2h_data, min_date=h2h_min_date) if h2h_data else []
+    )
 
     home_recent = extract_js_data(html_content, "h2_data")
-    home_matches = parse_match_record(home_recent) if home_recent else []
+    home_matches = (
+        parse_match_record(home_recent, min_date=recent_min_date) if home_recent else []
+    )
 
     away_recent = extract_js_data(html_content, "a2_data")
-    away_matches = parse_match_record(away_recent) if away_recent else []
+    away_matches = (
+        parse_match_record(away_recent, min_date=recent_min_date) if away_recent else []
+    )
 
     league_table_data = extract_js_data(html_content, "totalScoreStr")
     league_table = []
